@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="tournamentbot" />
+		<Option pch_mode="2" />
+		<Option compiler="mingw-w64" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/tournamentbot" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="mingw-w64" />
+				<Compiler>
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/tournamentbot" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="mingw-w64" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+		</Compiler>
+		<Unit filename="../make_moves-2015-12-08/make_moves/Gomoku.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/bfs.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/bfs.h" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/board.h" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/board_list.h" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/data.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/data_struct.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/data_struct.h" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/features.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/heuristic.cpp" />
+		<Unit filename="../make_moves-2015-12-08/make_moves/heuristic.h" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
