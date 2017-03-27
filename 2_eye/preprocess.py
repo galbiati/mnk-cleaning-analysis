@@ -311,3 +311,40 @@ def eye_hist(e, g):
 #     print(np.abs(epvt['rt'] - epvt['true rt']).sum())
 
     return e, epvt
+
+
+def main():
+    e_list = [load_eyetracker_file(e) for e in eyet_files]     # lists of dataframes containing respective data
+    m_list = [load_mouse_file(m) for m in mous_files]
+    g_list = [load_game_file(g) for g in mous_files]
+
+    t = [
+        make_tidy(e_list[i], m_list[i], g_list[i])
+        for i in range(len(e_list))
+    ]                                                          # create tidy dfs per subject along timestamp index
+
+    mpivs = []                                                 # holding lists for pivoted histograms
+    epivs = []
+
+    for i in range(len(m_list)):                               # for each subject
+
+        # MOUSE HISTOGRAMS
+        m_list[i], mpvt = mouse_hist(m_list[i], g_list[i])
+        mpivs.append(mpvt)
+
+        # EYE HISTOGRAMS
+        e_list[i], epvt = eye_hist(e_list[i], g_list[i])
+        epivs.append(epvt)
+
+    export_cols = list(range(36)) + [999, 'bp', 'wp', 'zet']
+    for i in range(len(mpivs)):
+        mp = mpivs[i]
+        ep = epivs[i]
+
+        mp[export_cols].to_csv(os.path.join(output_dir, 'mouse {}.csv'.format(i)))
+        ep[export_cols].to_csv(os.path.join(output_dir, 'eye {}.csv'.format(i)))
+
+        return None
+
+if __name__ == '__main__':
+    main()
