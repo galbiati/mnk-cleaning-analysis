@@ -185,7 +185,7 @@ def make_tidy(e, m, g):
 
     return D
 
-def mouse_hists(m, g):
+def mouse_hist(m, g):
     """Modifies mousetracking data to produce histograms over tile indices"""
 
     g['turn'] = 100*g['gi'] + g['mi']                      # add unique turn ids
@@ -247,3 +247,67 @@ def mouse_hists(m, g):
             mpvt[c] = 0
 
     return m, mpvt
+
+def eye_hist(e, g):
+    """
+    Modifies eyetracking data to produce histograms per trial
+
+    note: eye hist requires including ready markers to distinguish correctly, due to latency etc
+    (mousetracking does not record until after ready stops)
+    """
+
+
+    g['turn'] = 100*g['gi'] + g['mi']
+    turnfilter = g['status'].isin(['ready', 'playing', 'draw', 'win'])
+    gp = g.loc[turnfilter]
+    gp['turnstart'] = gp.index - gp['rt']
+    gp['turnend'] = gp.index
+
+    e['turnstart'] = np.nan
+    e['turnend'] = np.nan
+    e['ts'] = e.index
+    e['tile'] = np.nan
+    e['dur'] = np.nan
+    e = e.drop_duplicates(subset='ts')
+    e = e.append(gp[['turn', 'is human', 'turnstart', 'turnend']])
+    e = e.sort_index()
+    fillthese = ['turn', 'turnstart', 'turnend', 'is human']
+    e[fillthese] = e[fillthese].fillna(method='bfill')
+
+    e['tile'] = e['transx'] + 9*e['transy']
+    e['tile'] = e['tile'].fillna(method='ffill')
+    tilefilter = pd.notnull(e['tile'])
+    e.loc[tilefilter, 'tile'] = e.loc[tilefilter, 'tile'].astype(int)
+    e['dur'] = e.index
+    e['dur'] = e['dur'].diff(periods=1)
+
+    eyebounds = (e.index >= e['turnstart']) & (e.index <= e['turnend'])
+    e = e.loc[eyebounds]
+
+    ehumanfilter = e['is human'] == 1
+    epvt = e.loc[ehumanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
+    epvt.columns = epvt.columns.astype(int)
+
+    epvt['rt'] = epvt.sum(axis=1)
+    offboard = [
+        i for i in epvt.columns
+        if (i not in list(range(36)) and type(i)==int)
+    ]
+
+    epvt[999] = epvt[offboard].sum(axis=1)
+    turnfilter = g.status.isin(['playing', 'draw', 'win'])
+    ghumanfilter = g['is human'] == 1
+    gt = g.loc[turnfilter & ghumanfilter].set_index('turn')
+    epvt.loc[gt.index, 'true rt'] = gt['rt']
+
+    for c in ['bp', 'wp', 'zet']:
+        epvt.loc[gt.index, c] = gt[c]
+
+    epvt = epvt.loc[(epvt.index%100)!=0].fillna(value=0)
+
+    for c in range(36):
+        if c not in epvt.columns:
+            epvt[c] = 0
+#     print(np.abs(epvt['rt'] - epvt['true rt']).sum())
+
+    return e, epvt
