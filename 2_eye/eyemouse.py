@@ -184,3 +184,66 @@ def make_tidy(e, m, g):
     D.loc[D['mouflag']==1, 'moutile'] =  D.loc[D['mouflag']==1, 'moutile'].astype(int)
 
     return D
+
+def mouse_hists(m, g):
+    """Modifies mousetracking data to produce histograms over tile indices"""
+
+    g['turn'] = 100*g['gi'] + g['mi']                      # add unique turn ids
+    turnfilter = g['status'].isin(['playing', 'draw', 'win'])
+                                                           # filter on non-convenience records
+    gp = g.loc[turnfilter]                                 # apply filter
+    m['turn'] = np.nan                                     # initialize helper fields
+    m['turnstart'] = np.nan
+    m['turnend'] = np.nan
+    m['ts'] = m.index
+    m['xtile'] = np.nan
+    m['ytile'] = np.nan
+    m['tile'] = np.nan
+    m['dur'] = np.nan
+    m['is human'] = np.nan
+    m = m.drop_duplicates(subset='ts')                     # get rid of duplicate timestamps
+    m.loc[gp.index, 'turn'] = gp['turn']                   # add helper data to mouse df
+    m.loc[gp.index, 'turnstart'] = gp.index - gp['rt']
+    m.loc[gp.index, 'turnend'] = gp.index
+    m.loc[gp.index, 'is human'] = gp['is human']
+
+    m = m.sort_index()                                     # sort mouse data by timestamp
+    fillthese = ['turn', 'turnstart', 'turnend', 'is human']
+                                                           # helper columns to fill
+    m[fillthese] = m[fillthese].fillna(method='bfill')     # backfill missing data
+
+    m['dur'] = m.index
+    m['dur'] = m['dur'].diff(periods=1)                    # compute duration of each event
+    eventbounds = (m.index > m['turnstart']) & (m.index <= m['turnend'])
+                                                           # filter on mouse data within player turn
+    m = m.loc[eventbounds]                                 # apply filter
+
+    m['xtile'] = m['x'].astype(float).map(mouse_x_to_tile) # map mouse coords to board coords
+    m['ytile'] = m['y'].astype(float).map(mouse_y_to_tile)
+    m['tile'] = (m['xtile'] + 9*m['ytile']).astype(int)    # compute mouse tile
+
+    humanfilter = m['is human'] == 1                       # filter on human moves (mouse df)
+    mpvt = m.loc[humanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
+                                                           # pivot human trials duration per tile idx
+    mpvt['rt'] = mpvt.sum(axis=1)                          # recalculate rt for verification
+
+    offboard = [
+        i for i in mpvt.columns
+        if (i not in list(range(36)) and type(i)==int)
+    ]                                                      # column names for offboard locs
+
+    mpvt[999] = mpvt[offboard].sum(axis=1)                 # combine all offboard durations
+    humanfilter = g['is human'] == 1                       # filter on human moves (game df)
+    gt = g.loc[turnfilter & humanfilter].set_index('turn') # get non-convenience human records
+    mpvt.loc[gt.index, 'true rt'] = gt['rt']               # set 'true rt' for verification
+    mpvt = mpvt.fillna(value=0)                            # nan values mean 0 duration
+#     print('Mouse dif from true rt:', np.abs(mpvt['rt'] - mpvt['true rt']).sum())
+
+    for c in ['bp', 'wp', 'zet']:
+        mpvt.loc[gt.index, c] = gt[c]                      # set other game info fields on hist records
+
+    for c in range(36):
+        if c not in mpvt.columns:                          # set all nonvisited trials to 0 dur
+            mpvt[c] = 0
+
+    return m, mpvt
