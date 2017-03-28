@@ -37,7 +37,6 @@ def expand_mouse_mt(row):
     if type(row['mt'])==str:                               # check if valid data
         return str(starttime) + ',' + row['mt'] + ',' + str(endtime)
                                                            # add start, end times to respective ends of record
-
 def expand_mouse_mx(row):
     """Appends start time location, end time location to mouse spatial coordinates for a single record"""
 
