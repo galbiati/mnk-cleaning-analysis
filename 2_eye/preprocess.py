@@ -176,8 +176,9 @@ def make_tidy(e, m, g):
                                                            # set duration for each event of each type
     D.loc[D['mouflag']==1, 'moudur'] = D.loc[D['mouflag']==1, 'ts'].diff(periods=1)
 
-    D['eyetile'] = D['eyex'] + 9*D['eyey']                 # convert board coordinates to tile index
-    D['moutile'] = D['moux'] + 9*D['mouy']
+    D['eyetile'] = D['eyex'].astype(int) + 9*D['eyey'].astype(int)                 # convert board coordinates to tile index
+    mouvalid = ~pd.isnull(D['moux'])
+    D.loc[mouvalid, 'moutile'] = D.loc[mouvalid, 'moux'].astype(int) + 9*D.loc[mouvalid, 'mouy'].astype(int)
     D.loc[D['eyeflag']==1, 'eyetile'] =  D.loc[D['eyeflag']==1, 'eyetile'].astype(int)
                                                            # cast valid tile vals to int (np.nan is float)
     D.loc[D['mouflag']==1, 'moutile'] =  D.loc[D['mouflag']==1, 'moutile'].astype(int)
@@ -219,7 +220,7 @@ def mouse_hist(m, g):
 
     m['xtile'] = m['x'].astype(float).map(mouse_x_to_tile) # map mouse coords to board coords
     m['ytile'] = m['y'].astype(float).map(mouse_y_to_tile)
-    m['tile'] = (m['xtile'] + 9*m['ytile']).astype(int)    # compute mouse tile
+    m['tile'] = (m['xtile'].astype(int) + 9*m['ytile'].astype(int))    # compute mouse tile
 
     humanfilter = m['is human'] == 1                       # filter on human moves (mouse df)
     mpvt = m.loc[humanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
@@ -273,7 +274,8 @@ def eye_hist(e, g):
     fillthese = ['turn', 'turnstart', 'turnend', 'is human']
     e[fillthese] = e[fillthese].fillna(method='bfill')
 
-    e['tile'] = e['transx'] + 9*e['transy']
+    evalid = ~pd.isnull(e['transx'])
+    e.loc[evalid, 'tile'] = e.loc[evalid, 'transx'].astype(int) + 9*e.loc[evalid, 'transy'].astype(int)
     e['tile'] = e['tile'].fillna(method='ffill')
     tilefilter = pd.notnull(e['tile'])
     e.loc[tilefilter, 'tile'] = e.loc[tilefilter, 'tile'].astype(int)
