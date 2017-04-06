@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+from scipy.stats import multivariate_normal
 
 data_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Data/2_eye/New')
 game_dir = os.path.join(data_dir, 'game')
@@ -313,6 +314,20 @@ def eye_hist(e, g):
 
     return e, epvt
 
+grid = np.dstack(np.mgrid[0:4, 0:9])                # grid for norm binning
+
+def gausshist(row):
+    p = multivariate_normal.pdf(grid, mean=row[:2])
+    p *= row[2]
+    return p.reshape(36)
+
+def filtermove(df):
+    df_ = df.loc[pd.notnull(df['end'])] # & (df['tile'] >= 0) & (df['tile'] < 36)]
+    vals = df_.loc[:, ['transy', 'transx', 'dur']].values
+    h = np.apply_along_axis(gausshist, axis=1, arr=vals)
+    h = h.sum(axis=0)
+    h = h / h.sum()
+    return h
 
 def main():
     e_list = [load_eyetracker_file(e) for e in eyet_files]     # lists of dataframes containing respective data
@@ -326,26 +341,43 @@ def main():
 
     mpivs = []                                                 # holding lists for pivoted histograms
     epivs = []
+    fepivs = []
+    fmpivs = []
 
     for i in range(len(m_list)):                               # for each subject
+        g = g_list[i]
 
         # MOUSE HISTOGRAMS
-        m_list[i], mpvt = mouse_hist(m_list[i], g_list[i])
+        m_list[i], mpvt = mouse_hist(m_list[i], g)
         mpivs.append(mpvt)
 
         # EYE HISTOGRAMS
-        e_list[i], epvt = eye_hist(e_list[i], g_list[i])
+        e_list[i], epvt = eye_hist(e_list[i], g)
         epivs.append(epvt)
 
+        # FILTERED EYE HISTOGRAMS
+        e = e_list[i]
+        eclean = e.loc[pd.notnull(e['end'])]
+        g = g.set_index('turn')
+        filtered = eclean.groupby('turn').apply(filtermove)
+        filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
+        for c in ['bp', 'wp', 'zet']:
+            filtered[c] = g.loc[filtered.index, c]
+        fepivs.append(filtered)
+
     export_cols = list(range(36)) + [999, 'bp', 'wp', 'zet']
-    for i in range(len(mpivs)):
-        mp = mpivs[i]
+    filtered_cols = list(range(36)) + ['bp', 'wp', 'zet']
+
+    # EXPORT FILES FOR EACH SUBJECT, HIST TYPE
+    for i, mp in enumerate(mpivs):
         ep = epivs[i]
+        fep = fepivs[i]
 
         mp[export_cols].to_csv(os.path.join(output_dir, 'mouse {}.csv'.format(i)))
         ep[export_cols].to_csv(os.path.join(output_dir, 'eye {}.csv'.format(i)))
+        fep[filtered_cols].to_csv(os.path.join(output_dir, 'filtered eye {}.csv'.format(i)))
 
-        return None
+    return None
 
 if __name__ == '__main__':
     main()
