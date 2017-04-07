@@ -316,18 +316,26 @@ def eye_hist(e, g):
 
 grid = np.dstack(np.mgrid[0:4, 0:9])                # grid for norm binning
 
-def gausshist(row):
-    p = multivariate_normal.pdf(grid, mean=row[:2])
+def gausshist(row, cov=1):
+    p = multivariate_normal.pdf(grid, mean=row[:2], cov=cov)
     p *= row[2]
     return p.reshape(36)
 
-def filtermove(df):
+def filtermove(df, cov=1):
     df_ = df.loc[pd.notnull(df['end'])] # & (df['tile'] >= 0) & (df['tile'] < 36)]
     vals = df_.loc[:, ['transy', 'transx', 'dur']].values
-    h = np.apply_along_axis(gausshist, axis=1, arr=vals)
+    gh = lambda x: gausshist(x, cov=cov)
+    h = np.apply_along_axis(gh, axis=1, arr=vals)
     h = h.sum(axis=0)
     h = h / h.sum()
     return h
+
+def filterhalf(row, which='first'):
+    halfway = row['turnstart'] + (row['turnend'] - row['turnstart']) / 2
+    if which == 'first':
+        return row.name <= halfway
+    else:
+        return row.name > halfway
 
 def main():
     e_list = [load_eyetracker_file(e) for e in eyet_files]     # lists of dataframes containing respective data
@@ -342,7 +350,10 @@ def main():
     mpivs = []                                                 # holding lists for pivoted histograms
     epivs = []
     fepivs = []
-    fmpivs = []
+    fepivs_wide = []
+    fepivs_narrow = []
+    fepivs_half0 = []
+    fepivs_half1 = []
 
     for i in range(len(m_list)):                               # for each subject
         g = g_list[i]
@@ -358,24 +369,53 @@ def main():
         # FILTERED EYE HISTOGRAMS
         e = e_list[i]
         eclean = e.loc[pd.notnull(e['end'])]
+        half0 = eclean.apply(filterhalf, axis=1)
+        eclean_half0 = eclean.loc[half0]
+        eclean_half1 = eclean.loc[~half0]
         g = g.set_index('turn')
-        filtered = eclean.groupby('turn').apply(filtermove)
-        filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
-        for c in ['bp', 'wp', 'zet']:
-            filtered[c] = g.loc[filtered.index, c]
+
+        def make_filtered_hist(groupeddf, filterfunc=filtermove):
+            filtered = groupeddf.apply(filterfunc)
+            filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
+            for c in ['bp', 'wp', 'zet']:
+                filtered[c] = g.loc[filtered.index, c]
+            return filtered
+
+        grouped = eclean.groupby('turn')
+        widefunc = lambda x: filtermove(x, cov=[[1.5, 0], [0, 1.5]])
+        narrowfunc = lambda x: filtermove(x, cov=[[.66, 0], [0, .66]])
+
+        filtered = make_filtered_hist(grouped)
+        filtered_wide = make_filtered_hist(grouped, filterfunc=widefunc)
+        filtered_narrow = make_filtered_hist(grouped, filterfunc=narrowfunc)
+        filtered_half0 = make_filtered_hist(eclean_half0.groupby('turn'))
+        filtered_half1 = make_filtered_hist(eclean_half1.groupby('turn'))
+
         fepivs.append(filtered)
+        fepivs_wide.append(filtered_wide)
+        fepivs_narrow.append(filtered_narrow)
+        fepivs_half0.append(filtered_half0)
+        fepivs_half1.append(filtered_half1)
 
     export_cols = list(range(36)) + [999, 'bp', 'wp', 'zet']
-    filtered_cols = list(range(36)) + ['bp', 'wp', 'zet']
+    fil_cols = list(range(36)) + ['bp', 'wp', 'zet']
 
     # EXPORT FILES FOR EACH SUBJECT, HIST TYPE
     for i, mp in enumerate(mpivs):
         ep = epivs[i]
         fep = fepivs[i]
+        fepw = fepivs_wide[i]
+        fepn = fepivs_narrow[i]
+        feph0 = fepivs_half0[i]
+        feph1 = fepivs_half1[i]
 
         mp[export_cols].to_csv(os.path.join(output_dir, 'mouse {}.csv'.format(i)))
         ep[export_cols].to_csv(os.path.join(output_dir, 'eye {}.csv'.format(i)))
-        fep[filtered_cols].to_csv(os.path.join(output_dir, 'filtered eye {}.csv'.format(i)))
+        fep[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye {}.csv'.format(i)))
+        fepw[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye wide {}.csv'.format(i)))
+        fepn[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye narrow {}.csv'.format(i)))
+        feph0[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye half0 {}.csv').format(i))
+        feph1[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye half1 {}.csv').format(i))
 
     return None
 
