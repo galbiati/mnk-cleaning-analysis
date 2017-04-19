@@ -9,41 +9,62 @@ from util.mnkhelpers import bits2boards as b2b
 # This is almost pretty now! So excited!
 
 class Data():
-    """ Data is the primary object for holding experimental data. It also contains functions
-        for the loading, cleaning, augmentation, and export of the data tables. """
+    """
+    Data is the primary object for holding experimental data.
+    It also contains functions for the loading, cleaning, augmentation, and
+    export of the data tables.
+    """
 
     def __init__(self, folder):
-        self.original_columns = ['index', 'subject', 'color', 'gi', 'mi', \
-                                    'status', 'bp', 'wp', 'response', 'rt', \
-                                    'time', 'mouse_t', 'mouse_x']
-        self.full_output_columns = ['subject', 'is_comp', 'color', 'status', \
-                                    'bp', 'wp', 'response', 'rt', 'gi', 'mi', \
-                                    'computer', 'human', 'time', 'a', 'b', \
-                                    'aval', 'bval', 'val', 'condition', 'group', 'session']
-        self.game_model_columns = ['subject', 'color', 'bp', 'wp', 'response', 'rt', \
-                                    'condition', 'group', 'session']
-        self.afc2_model_columns = ['subject', 'color', 'bp', 'wp', 'response', 'rt', 'a', \
-                                   'b', 'aval', 'bval', 'condition', 'group', 'session']
-        self.eval_model_columns = ['subject', 'color', 'bp', 'wp', 'response', 'rt', 'val', \
-                                    'condition', 'group', 'session']
+        self.original_columns = [
+            'index', 'subject', 'color', 'gi', 'mi', 'status', 'bp', 'wp',
+            'response', 'rt', 'time', 'mouse_t', 'mouse_x'
+        ]
+
+        self.full_output_columns = [
+            'subject', 'is_comp', 'color', 'status', 'bp', 'wp', 'response',
+            'rt', 'gi', 'mi', 'computer', 'human', 'time',
+            'a', 'b', 'aval', 'bval', 'val', 'condition', 'group', 'session'
+        ]
+
+        self.game_model_columns = [
+            'subject', 'color', 'bp', 'wp', 'response', 'rt',
+            'condition', 'group', 'session'
+        ]
+
+        self.afc2_model_columns = [
+            'subject', 'color', 'bp', 'wp', 'response', 'rt',
+            'a', 'b', 'aval', 'bval', 'condition', 'group', 'session'
+        ]
+
+        self.eval_model_columns = [
+            'subject', 'color', 'bp', 'wp', 'response', 'rt',
+            'val', 'condition', 'group', 'session'
+        ]
 
 
-        self.group_ref = {0: [0, 1, 2, 3, 4],
-                          1: [0, 1, 4, 3, 2],
-                          2: [2, 1, 0, 3, 4],
-                          3: [4, 1, 0, 3, 2],
-                          4: [2, 1, 4, 3, 0],
-                          5: [4, 1, 2, 3, 0]}
+        self.group_ref = {
+            0: [0, 1, 2, 3, 4],
+            1: [0, 1, 4, 3, 2],
+            2: [2, 1, 0, 3, 4],
+            3: [4, 1, 0, 3, 2],
+            4: [2, 1, 4, 3, 0],
+            5: [4, 1, 2, 3, 0]
+        }
+
         self.groups = {
-            'CE':0, 'GL':1, 'TQ':2, 'SW':3, 'LM':4, 'XW':5, 
+            'CE':0, 'GL':1, 'TQ':2, 'SW':3, 'LM':4, 'XW':5,
             'XM':0, 'XZ':1, 'KL':2, 'MS':3, 'AB':4, 'VC':5,
             'GB':0, 'HS':1, 'YV':2, 'YZ':3, 'EN':4, 'SL':5,
             'IK':0, 'LW':1, 'EW':2, 'AB2':3, 'JC':4, 'OR':5,
             'QC':0, 'JP':1, 'LH':2, 'XG':3, 'SG':4, 'IS':5
        }
 
-        self.group_chart = pd.DataFrame(index=self.groups.keys(), 
-                            columns=['a', '2', 'b', '4', 'c'])
+        self.group_chart = pd.DataFrame(
+            index=self.groups.keys(),
+            columns=['a', '2', 'b', '4', 'c']
+        )
+
         reffer = lambda x: self.group_ref[self.groups[x]]
         for s in self.group_chart.index:
             self.group_chart.loc[s, :] = reffer(s)
@@ -101,7 +122,7 @@ class Data():
         """ Calls other functions to corrale data and some support information """
         print('Loading data...')
         self.exp_name = folder
-        files = os.listdir(folder + '/Raw/')    
+        files = os.listdir(folder + '/Raw/')
         files = [f for f in files if f[-3:] == 'csv']
         self.subjects = np.unique([f[10:-4] for f in files])
         self.subject_dict = odict(zip(self.subjects, np.arange(len(self.subjects))))
