@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scipy.signal as sig
 
 """
 This file contains functions for counting various kinds of errors and other
@@ -73,3 +74,34 @@ def n_pieces(row):
     n_bpieces = string_to_array(bpt).sum()
     n_wpieces = string_to_array(wpt).sum()
     return n_bpieces + n_wpieces
+
+def n_neighbors(x, f):
+    """
+    Operates with np.apply_along_axis
+    Counts number of neighbors by convolving with appropriate filter
+    """
+    xin = x.reshape([4, 9])
+    c = sig.convolve(xin, f, mode='same')
+    return c.reshape(36)
+
+def h_neighbors(x):
+    """
+    Count horizontal neighbors
+    """
+    f = np.array([[1, 0, 1]])
+    return n_neighbors(x, f)
+
+def v_neighbors(x):
+    """
+    Count vertical neighbors
+    """
+    f = np.array([[1, 0, 1]]).T
+    return n_neighbors(x, f)
+
+def d_neighbors(x):
+    """
+    Count diagonal neighbors
+    """
+    f = np.diag(np.array([1, 0, 1]))
+    f = f + f[:, ::-1]
+    return n_neighbors(x, f)
