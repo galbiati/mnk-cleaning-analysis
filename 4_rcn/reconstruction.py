@@ -19,6 +19,8 @@ def string_to_array(board_string):
     """
     return np.array(list(board_string)).astype(int)
 
+# Below works with pandas.DataFrame.apply
+
 def expand_row(row):
     """
     Utility function for extracting positions in pandas dataframe
@@ -74,6 +76,8 @@ def n_pieces(row):
     n_bpieces = string_to_array(bpt).sum()
     n_wpieces = string_to_array(wpt).sum()
     return n_bpieces + n_wpieces
+
+# Below functions work with np.apply_along_axis
 
 def n_neighbors(x, f):
     """
