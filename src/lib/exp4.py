@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from .util import *
+
 def load_file(filepath):
     """
     Loads a single data file into a dataframe and
@@ -53,6 +55,8 @@ def load_data(filepaths):
     Loads all data into a single dataframe
     and does some additional preprocessing
 
+    TODO: add real/fake identifiers for each position!
+
     Arguments:
     ----------
     :filepaths is a list of complete relative or absolute filepaths pointing to
@@ -79,10 +83,8 @@ def load_data(filepaths):
     DF['Position ID'] = DF['Position ID'].map(position_map)
 
     # "melt" initial and final observations (stimulus and final submission) into single rows
-    DFi = DF.loc[initial_stim]
-    DFf = DF.loc[~initial_stim]
-    DFi['Black Position (final)'] = DFf['Black Position'].values
-    DFi['White Position (final)'] = DFf['White Position'].values
+    DF.loc[initial_stim, 'Black Position (final)'] = DF.loc[~initial_stim, 'Black Position'].values
+    DF.loc[initial_stim, 'White Position (final)'] = DF.loc[~initial_stim, 'White Position'].values
 
     # only keep what we're actively using
     keep = [
@@ -91,4 +93,49 @@ def load_data(filepaths):
         'Black Position (final)', 'White Position (final)'
     ]
 
-    return DFi[keep]
+    return DF.loc[initial_stim, keep]
+
+def process_data(DF):
+    """
+    Processes data, adding auxilliary information and counting errors
+    of various types
+
+    TODO: make this a class to retain eg bpi, bpf, wpi, wpf
+    """
+
+    bpi = series_to_array(DF['Black Position'])
+    bpf = series_to_array(DF['Black Position (final)'])
+    wpi = series_to_array(DF['White Position'])
+    wpf = series_to_array(DF['White Position (final)'])
+
+    black_errors = (bpf != bpi).astype(int)
+    white_errors = (wpf != wpi).astype(int)
+
+    type_1b = ((bpf == 1) & (bpi == 0)).astype(int).sum(axis=0)
+    type_1w = ((wpf == 1) & (wpi == 0)).astype(int).sum(axis=0)
+
+    type_2b = ((bpf == 0) & (bpi == 1)).astype(int).sum(axis=0)
+    type_2w = ((wpf == 0) & (wpi == 1)).astype(int).sum(axis=0)
+
+    type_3b = ((wpf == 1) & (bpi == 1)).astype(int).sum(axis=0)
+    type_3w = ((bpf == 1) & (wpi == 1)).astype(int).sum(axis=0)
+
+    DF['Num Black Pieces'] = bpi.sum(axis=0)
+    DF['Num White Pieces'] = wpi.sum(axis=0)
+    DF['Num Pieces'] = DF['Num Black Pieces'] + DF['Num White Pieces']
+    DF['Total Black Errors'] = black_errors.sum(axis=0)
+    DF['Total White Errors'] = white_errors.sum(axis=0)
+    DF['Total Errors'] = np.ceil((black_errors + white_errors) / 2).sum(axis=0)
+
+    DF['Type I Errors (black)'] = type_1b - type_3w
+    DF['Type I Errors (white)'] = type_1w - type_3b
+    DF['Type I Errors'] = type_1b + type_1w - type_3b - type_3w
+
+    DF['Type II Errors (black)'] = type_2b - type_3b
+    DF['Type II Errors (white)'] = type_2w - type_3w
+    DF['Type II Errors'] = type_2b + type_2w - type_3b - type_3w
+
+    DF['Type III Errors (black)'] = type_3b
+    DF['Type III Errors (white)'] = type_3w
+    DF['Type III Errors'] = type_3b + type_3w
+    return DF
