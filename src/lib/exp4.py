@@ -78,9 +78,16 @@ def load_data(filepaths):
     DF['Position ID'] = DF['Black Position'] + DF['White Position']
     first_subject = DF['Subject ID'] == DF['Subject ID'].unique()[0]
     initial_stim = DF['Status'] == 'I'
-    position_index = DF.loc[first_subject & initial_stim, 'Position ID']
-    position_map = dict(zip(position_index, np.arange(len(position_index))))
-    DF['Position ID'] = DF['Position ID'].map(position_map)
+    # position_index = DF.loc[first_subject & initial_stim, 'Position ID']
+    # position_map = dict(zip(position_index, np.arange(len(position_index))))
+    position_map = pd.read_csv(
+        '../etc/4 Reconstruction/position_map.csv',
+        index_col=0, skiprows=1,
+        names=['Position', 'Is Real', 'Position ID']
+    )
+
+    DF['Is Real'] = DF['Position ID'].map(position_map['Is Real']).values
+    DF['Position ID'] = DF['Position ID'].map(position_map['Position ID']).values
 
     # "melt" initial and final observations (stimulus and final submission) into single rows
     DF.loc[initial_stim, 'Black Position (final)'] = DF.loc[~initial_stim, 'Black Position'].values
@@ -89,7 +96,7 @@ def load_data(filepaths):
     # only keep what we're actively using
     keep = [
         'Subject ID', 'Condition', 'Game Index',
-        'Position ID', 'Black Position', 'White Position',
+        'Position ID', 'Is Real', 'Black Position', 'White Position',
         'Black Position (final)', 'White Position (final)'
     ]
 
@@ -103,10 +110,7 @@ def process_data(DF):
     TODO: make this a class to retain eg bpi, bpf, wpi, wpf
     """
 
-    bpi = series_to_array(DF['Black Position'])
-    bpf = series_to_array(DF['Black Position (final)'])
-    wpi = series_to_array(DF['White Position'])
-    wpf = series_to_array(DF['White Position (final)'])
+    bpi, wpi, bpf, wpf = unpack_positions(DF)
 
     black_errors = (bpf != bpi).astype(int)
     white_errors = (wpf != wpi).astype(int)
@@ -138,4 +142,19 @@ def process_data(DF):
     DF['Type III Errors (black)'] = type_3b
     DF['Type III Errors (white)'] = type_3w
     DF['Type III Errors'] = type_3b + type_3w
+
     return DF
+
+def unpack_positions(DF):
+    """
+    Unpacks independent black and white positions for initial stimuli
+    and responses from string representations in DF into numpy arrays
+    """
+
+    fields = [
+        'Black Position', 'White Position',
+        'Black Position (final)', 'White Position (final)'
+    ]
+
+    bpi, wpi, bpf, wpf = [series_to_array(DF[field]) for field in fields]
+    return bpi, wpi, bpf, wpf
