@@ -1,15 +1,29 @@
-# packages and libraries
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Wei Ji Ma Lab, New York University Center for Neural Science
+# By: Gianni Galbiati
+
+# Standard Python Libraries (alphabetical order)
+from datetime import datetime as dt
+import os
+import re
+import sys
+
+# Scientific Python Libraries (alphabetical order)
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import datetime as dt
 import scipy.optimize as opt
 import seaborn as sns
+
+# Internal Python Libraries (alphabetical order)
+sys.path.append('../..')
+import clean_eye as dc
+
 sns.set_palette("muted")
-import re
 
 # custom modules
-import data_cleaning as dc
 
 # wish list:
 

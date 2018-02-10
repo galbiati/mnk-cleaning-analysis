@@ -1,34 +1,38 @@
-# split this into main funcs on eyelink.py and new file hists.py to avoid recomputing events data each time
-# a debugger is you
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Wei Ji Ma Lab, New York University Center for Neural Science
+# By: Gianni Galbiati
 
+# Standard Python Libraries (alphabetical order)
+import os
+
+# Scientific Python Libraries (alphabetical order)
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-import scipy.optimize as opt
-from datetime import datetime as dt
-from math import erf as erf
-import imp as imp
-import eyelink as el
-import scipy.ndimage as ndi
 import scipy.stats as sts
-import matplotlib.colors as mpc
 import seaborn as sns
-import itertools as ito
 
-import data_cleaning as dc
-import eyelink as el
+# Internal Python Libraries (alphabetical order)
 
+import lib.util.eyelink as el
+
+
+# Configure plotting style
 sns.set(palette='muted')
 sns.set_style('white')
 B, G, R, P = sns.color_palette("muted", 4)
 sns.set_context('poster')
 
+# Set directory references
 datdir = "Raw/"
 outdir = "Clean/"
 stsdir = "Statistics/"
 figdir = "Figures/"
 
+# Initials for subjects
 subject_initials = ["RG", "JL", "JA", "PO", "BA", "AN", "IA", "DL", "JP", "VL"]
+
 
 def event_data(si):
     s = el.Subject(datdir + si + '.csv', datdir + si + '.asc', si) 

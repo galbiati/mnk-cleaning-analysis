@@ -1,8 +1,21 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Wei Ji Ma Lab, New York University Center for Neural Science
+# By: Gianni Galbiati
+
+# Standard Python Libraries (alphabetical order)
 import os
-import pandas as pd
+
+# Scientific Python Libraries (alphabetical order)
 import numpy as np
+import pandas as pd
 from scipy.stats import multivariate_normal
 
+# Internal Python Libraries (alphabetical order)
+
+
+# Set up directory and filepath references
 data_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Data/2_eye/New')
 game_dir = os.path.join(data_dir, 'game')
 eyet_dir = os.path.join(data_dir, 'eyet')
@@ -12,47 +25,70 @@ game_files = [os.path.join(game_dir, g) for g in os.listdir(game_dir) if g[-3:]=
 eyet_files = [os.path.join(eyet_dir, e) for e in os.listdir(eyet_dir) if e[-3:]=='csv']
 mous_files = [os.path.join(mous_dir, m) for m in os.listdir(mous_dir) if m[-3:]=='csv']
 
+# Get subject identifiers
 subject_initial_map = [g[-6:-4] for g in game_files]       # get alphabetical list of subject initials from filenames
 subject_initial_map = dict(zip(subject_initial_map, np.arange(len(subject_initial_map))))
-                                                           # map initials to ordinal indices
-top = 192                                                  # board bounds and dimensions in pixels
+
+# Dimensions of board display in pixels
+top = 192
 bottom = 506
 left = 177
 right = 889
 width = right - left
 height = bottom - top
 
+
 def mouse_x_to_tile(x):
     """Converts mouse x coordinates to board-space"""
     return 9*(x - left) / width
+
 
 def mouse_y_to_tile(y):
     """Converts mouse y coordinates to board-space"""
     return 4*(y - top) / height
 
+
 def expand_mouse_mt(row):
-    """Appends start time, end time to mouse timestamp records for a single record"""
+    """
+    Appends start time, end time to mouse timestamp records for a single record
+
+    For use with pd.DataFrame.apply()
+    """
 
     endtime = int(row['ts'])                               # get turn end timestamp
     starttime = endtime - int(row['rt'])                   # get turn start from turn end and turn duration
-    if type(row['mt'])==str:                               # check if valid data
+
+    # add start, end times to respective ends of record
+    if type(row['mt']) == str:                             # check if valid data
         return str(starttime) + ',' + row['mt'] + ',' + str(endtime)
-                                                           # add start, end times to respective ends of record
+
+
 def expand_mouse_mx(row):
-    """Appends start time location, end time location to mouse spatial coordinates for a single record"""
+    """
+    Appends start time location, end time location to mouse spatial coordinates for a single record
+
+    For use with pd.DataFrame.apply()
+    """
 
     endtime = int(row['ts'])                               # get turn end timestamp
     starttime = endtime - int(row['rt'])                   # get turn start from turn end and turn duration
-    if type(row['mx'])==str:                               # check if valid data
+
+    if type(row['mx']) == str:                             # check if valid data
         locs = row['mx'].split(';')                        # split record into (x, y) pair strings
         endloc = locs[-1]                                  # select first and last coordinate pairs
         startloc = locs[0]
-        return startloc + ';' + row['mx'] + ';' + endloc    # add start, end coords to respective ends of record
+        return startloc + ';' + row['mx'] + ';' + endloc   # add start, end coords to respective ends of record
+
 
 def fix_game_boards(row):
-    """Removes move from appropriate color board string representation for a single record"""
+    """
+    Removes move from appropriate color board string representation for a single record
+
+    For use with pd.DataFrame.apply()
+    """
 
     bp, wp = row[['bp', 'wp']]                              # select board string reps
+
     if row['color']==0:                                     # if Black is player
         p = list(bp)                                        # convert board string to list (mutability)
         p[int(row['zet'])] = '0'                            # set list at zet loc to be '0'
@@ -65,40 +101,49 @@ def fix_game_boards(row):
 def load_game_file(gf):
     """Loads and preprocesses data from game observations"""
 
+    # Labels for fields
     gfnames = [
-        'idx', 'id', 'color', 'gi', 'mi',
-        'status', 'bp', 'wp', 'zet',
-        'rt', 'ts', 'mt', 'mx'
-    ]                                                      # names for columns
+        'idx', 'id', 'color', 'gi', 'mi', 'status',
+        'bp', 'wp', 'zet', 'rt',
+        'ts', 'mt', 'mx'
+    ]
 
-    D = pd.read_csv(gf, names=gfnames)                     # load csv into pandas dataframe
+    # Load csv into a dataframe
+    D = pd.read_csv(gf, names=gfnames)
+
+    # Remove convenience records by AI
     readyfilter = D['status'] == 'ready'                   # filter on convenience records
     rtfilter = D['rt'] == 0                                # filter on AI moves
     aifilter = ~(readyfilter & rtfilter)                   # filter out convenience AI records
     D = D.loc[aifilter]                                    # apply filter
+
+    # Make necessary data corrections
     D.loc[readyfilter, 'rt'] = 0                           # set human convenience records rt field to 0
     D['subject'] = gf[-6:-4]                               # set subject field to initials in game file name
     D['human'] = D['subject'].map(subject_initial_map)     # set human field to be subject index (alphabetical)
     D['move_start_ts'] = (D['ts'] - D['rt']).shift(-1)     # set move_start_timestamp field to turn beginning
     tsfilter = rtfilter | readyfilter                      # filter on ai OR convenience records
-    D.loc[tsfilter, 'ts'] = D.loc[tsfilter, 'move_start_ts']
-                                                           # replace invalid timestamps with inferred correct timestamp
+    D.loc[tsfilter, 'ts'] = D.loc[tsfilter, 'move_start_ts']    # replace invalid timestamps with inferred move start
     D['mx'] = D.apply(expand_mouse_mx, axis=1)             # append move start and end mouse spatial coords
     D['mt'] = D.apply(expand_mouse_mt, axis=1)             # append move start and end timestamps to mouse timestamps
     D['is human'] = 1                                      # initialize human player indicator variable
-    playfilter = D['status'].isin(['playing', 'win', 'draw'])
-                                                           # filter on non-convenience records
+    playfilter = D['status'].isin(['playing', 'win', 'draw'])   # filter on non-convenience records
     D.loc[playfilter & rtfilter, 'is human'] = 0           # set human player indicator to 0 on AI records
     endfilter = D['status'].isin(['win', 'draw'])          # filter on game end records
-    idx = D.loc[endfilter].index                                   # get indices for game end filter application
+    idx = D.loc[endfilter].index                           # get indices for game end filter application
+
     if D.loc[idx[-1], 'rt'] != 0:                          # if human player ended last game
         D.loc[idx[-1], 'gi'] = D.loc[idx[-1], 'gi'] - 1    # subtract 1 from game index (why? probably a data error)
-    bpfilter = D['color']==0                               # filter on player colors
-    wpfilter = D['color']==1
+
+    bpfilter = D['color'] == 0                             # filter on player colors
+    wpfilter = D['color'] == 1
+
+    # Apply filters and remove last move from board
     D.loc[bpfilter, 'bp'] = D.loc[bpfilter].apply(fix_game_boards, axis=1)
     D.loc[wpfilter, 'wp'] = D.loc[wpfilter].apply(fix_game_boards, axis=1)
-                                                           # apply filters and remove last move from board
+
     return D.set_index('ts')                               # set index to timestamps
+
 
 def load_mouse_file(mf):
     """Loads and preprocesses mouse tracking data"""
@@ -122,69 +167,66 @@ def load_mouse_file(mf):
     M['subject'] = mf[-6:-4]                               # set subject field to initials
     M['human'] = M['subject'].map(subject_initial_map)     # set human field to subject ordinal index
     M.index = M.index.astype(int)                          # cast timestamp index to integers
+
     return M
+
 
 def load_eyetracker_file(ef):
     """Loads and preprocesses eyetracker data"""
+
     D = pd.read_csv(ef)                                    # load EL data into pandas dataframe
     D['subject'] = ef[-6:-4]                               # set subject field to initials
     D['human'] = D['subject'].map(subject_initial_map)     # set human field to subject ordinal index
-    D[['start', 'end']] = (D[['start', 'end']]*1000).astype(int)
-                                                           # set start and end fields to ms resolution, integers
-    return D[['start', 'end', 'transx', 'transy', 'human']].set_index('start')
-                                                           # lose the fluff; index by start timestamp
-def make_tidy(e, m, g):
-    """
-    Produces a combined dataframe of mouse and eye coordinates, indexed by timestamp
 
-    Should consider modifying to not use e_list, m_list, and g_list, but rather to take
-    e, m, g as args
-    """
-                                                           # get appropriate dataframe for each subject
+    # Set start and end fields to ms resolution, integers
+    D[['start', 'end']] = (D[['start', 'end']]*1000).astype(int)
+
+    # Lose the fluff; index by start timestamp
+    return D[['start', 'end', 'transx', 'transy', 'human']].set_index('start')
+
+
+def make_tidy(e, m, g):
+    """Produces a combined dataframe of mouse and eye coordinates, indexed by timestamp"""
+
     start_time = int(e.index[0])                           # get the eyetracker start time
     end_time = int(e.loc[e.index.values[-1], 'end'])       # get the eyetracker end time
-    mbounds = (m.index >= start_time) & (m.index <= end_time)
-                                                           # filter on mouse records within EL record bounds
+    mbounds = (m.index >= start_time) & (m.index <= end_time) # filter on mouse records within EL record bounds
     m = m.loc[mbounds]                                     # apply filter
     idx = np.arange(start_time, end_time, 1)               # prepare index for new dataframe
     D = pd.DataFrame(index=idx)                            # new dataframe for tidy timeseries
     D.loc[e.index, 'eyex'] = e['transx'].astype(float)     # get valid eye coordinates in board space
     D.loc[e.index, 'eyey'] = e['transy'].astype(float)
     D.loc[e.index, 'eyeflag'] = 1                          # indicator for eye event
-
-    D.loc[m.index, 'moux'] = m['x'].astype(float).map(mouse_x_to_tile)
-                                                           # get valid mouse coords and map to board space
+    D.loc[m.index, 'moux'] = m['x'].astype(float).map(mouse_x_to_tile) # get valid mouse coords and map to board space
     D.loc[m.index, 'mouy'] = m['y'].astype(float).map(mouse_y_to_tile)
     D.loc[m.index, 'mouflag'] = 1                          # indicator for mouse event
 
     _sl = g.loc[g.index > start_time, :]                   # selector for valid game events
-
     D.loc[_sl.index, 'turn'] = 100*_sl['gi'] + _sl['mi']   # unique id for turns for valid game events
     D.loc[_sl.index, 'task'] = _sl['status']               # task indicator
-
     D = D.dropna(how='all')                                # shrink dataframe by pruning all event-less records
 
-    fillcols = [
-        'eyex', 'eyey',
-        'moux', 'mouy',
-        'turn', 'task'
-    ]                                                      # fields to fill forward
-
-    D[fillcols] = D[fillcols].fillna(method='ffill')       # fill forward
+    # Fill fields forward
+    fillcols = ['eyex', 'eyey', 'moux', 'mouy', 'turn', 'task']
+    D[fillcols] = D[fillcols].fillna(method='ffill')
 
     D['ts'] = D.index                                      # convenience field of timestamps
-    D.loc[D['eyeflag']==1, 'eyedur'] = D.loc[D['eyeflag']==1, 'ts'].diff(periods=1)
-                                                           # set duration for each event of each type
-    D.loc[D['mouflag']==1, 'moudur'] = D.loc[D['mouflag']==1, 'ts'].diff(periods=1)
 
-    D['eyetile'] = D['eyex'].astype(int) + 9*D['eyey'].astype(int)                 # convert board coordinates to tile index
+    # Set duration for each event of each type
+    D.loc[D['eyeflag'] == 1, 'eyedur'] = D.loc[D['eyeflag'] ==1, 'ts'].diff(periods=1)
+    D.loc[D['mouflag'] == 1, 'moudur'] = D.loc[D['mouflag'] == 1, 'ts'].diff(periods=1)
+
+    # Convert board coordinates to tile index
+    D['eyetile'] = D['eyex'].astype(int) + 9*D['eyey'].astype(int)
     mouvalid = ~pd.isnull(D['moux'])
     D.loc[mouvalid, 'moutile'] = D.loc[mouvalid, 'moux'].astype(int) + 9*D.loc[mouvalid, 'mouy'].astype(int)
+
+    # Cast valid tile vals to int (np.nan is float)
     D.loc[D['eyeflag']==1, 'eyetile'] =  D.loc[D['eyeflag']==1, 'eyetile'].astype(int)
-                                                           # cast valid tile vals to int (np.nan is float)
     D.loc[D['mouflag']==1, 'moutile'] =  D.loc[D['mouflag']==1, 'moutile'].astype(int)
 
     return D
+
 
 def mouse_hist(m, g):
     """Modifies mousetracking data to produce histograms over tile indices"""
@@ -228,10 +270,8 @@ def mouse_hist(m, g):
                                                            # pivot human trials duration per tile idx
     mpvt['rt'] = mpvt.sum(axis=1)                          # recalculate rt for verification
 
-    offboard = [
-        i for i in mpvt.columns
-        if (i not in list(range(36)) and type(i)==int)
-    ]                                                      # column names for offboard locs
+    # Get column names for locations off the board
+    offboard = [i for i in mpvt.columns if (i not in list(range(36)) and type(i)==int)]
 
     mpvt[999] = mpvt[offboard].sum(axis=1)                 # combine all offboard durations
     humanfilter = g['is human'] == 1                       # filter on human moves (game df)
@@ -249,6 +289,7 @@ def mouse_hist(m, g):
 
     return m, mpvt
 
+
 def eye_hist(e, g):
     """
     Modifies eyetracking data to produce histograms per trial
@@ -257,56 +298,79 @@ def eye_hist(e, g):
     (mousetracking does not record until after ready stops)
     """
 
-
+    # Get identifier for each turn
     g['turn'] = 100*g['gi'] + g['mi']
+
+    # Filter for valid game status records
     turnfilter = g['status'].isin(['ready', 'playing', 'draw', 'win'])
     gp = g.loc[turnfilter]
+
+    # Set turn start and turn end timestamps
     gp['turnstart'] = gp.index - gp['rt']
     gp['turnend'] = gp.index
 
+    # Initialize fields in eyetracking dataframe
     e['turnstart'] = np.nan
     e['turnend'] = np.nan
     e['ts'] = e.index
     e['tile'] = np.nan
     e['dur'] = np.nan
+
+    # Drop duplicate timestamps from e
     e = e.drop_duplicates(subset='ts')
+
+    # Insert rows from game data at timestamps and sort by time
     e = e.append(gp[['turn', 'is human', 'turnstart', 'turnend']])
     e = e.sort_index()
+
+    # Fill appropriate records backwards in time (game records submitted at END of turn)
     fillthese = ['turn', 'turnstart', 'turnend', 'is human']
     e[fillthese] = e[fillthese].fillna(method='bfill')
 
+    # Convert translated coordinates to tile indices
     evalid = ~pd.isnull(e['transx'])
     e.loc[evalid, 'tile'] = e.loc[evalid, 'transx'].astype(int) + 9*e.loc[evalid, 'transy'].astype(int)
     e['tile'] = e['tile'].fillna(method='ffill')
     tilefilter = pd.notnull(e['tile'])
     e.loc[tilefilter, 'tile'] = e.loc[tilefilter, 'tile'].astype(int)
+
+    # Calculate observation durations
     e['dur'] = e.index
     e['dur'] = e['dur'].diff(periods=1)
 
+    # Filter out observations that don't happen during turn
     eyebounds = (e.index >= e['turnstart']) & (e.index <= e['turnend'])
     e = e.loc[eyebounds]
 
+    # Get total duration per turn for human trials
     ehumanfilter = e['is human'] == 1
     epvt = e.loc[ehumanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
     epvt.columns = epvt.columns.astype(int)
 
+    # Calculate response time
     epvt['rt'] = epvt.sum(axis=1)
-    offboard = [
-        i for i in epvt.columns
-        if (i not in list(range(36)) and type(i)==int)
-    ]
 
+    # Combine off-board locations into single location
+    offboard = [i for i in epvt.columns if (i not in list(range(36)) and type(i)==int)]
     epvt[999] = epvt[offboard].sum(axis=1)
+
+    # Drop convenience records
     turnfilter = g.status.isin(['playing', 'draw', 'win'])
     ghumanfilter = g['is human'] == 1
+
+    # Get a view of game data indexed by turn (same as epvt)
     gt = g.loc[turnfilter & ghumanfilter].set_index('turn')
     epvt.loc[gt.index, 'true rt'] = gt['rt']
 
+    # Set game data values on epvt
     for c in ['bp', 'wp', 'zet']:
         epvt.loc[gt.index, c] = gt[c]
 
-    epvt = epvt.loc[(epvt.index%100)!=0].fillna(value=0)
+    # Get rid of entries where gi == mi == 0 and fill in zeros at all missing values
+    #   ? - don't remember why I did this, but probably was due to the way timestamps recorded when AI moved first?
+    epvt = epvt.loc[(epvt.index % 100) != 0].fillna(value=0)
 
+    # Make sure all columns have values
     for c in range(36):
         if c not in epvt.columns:
             epvt[c] = 0
@@ -314,40 +378,75 @@ def eye_hist(e, g):
 
     return e, epvt
 
-grid = np.dstack(np.mgrid[0:4, 0:9])                # grid for norm binning
+
+# Get a grid for norm binning
+grid = np.dstack(np.mgrid[0:4, 0:9])
+
 
 def gausshist(row, cov=1):
+    """
+    Compute a multivariate normal distribution and filter location
+
+    For use with np.apply_along_axis()
+    """
+
     p = multivariate_normal.pdf(grid, mean=row[:2], cov=cov)
     p *= row[2]
     return p.reshape(36)
 
+
 def filtermove(df, cov=1):
+    """Apply Gaussian filter to all moves"""
+
     df_ = df.loc[pd.notnull(df['end'])] # & (df['tile'] >= 0) & (df['tile'] < 36)]
     vals = df_.loc[:, ['transy', 'transx', 'dur']].values
+
     gh = lambda x: gausshist(x, cov=cov)
     h = np.apply_along_axis(gh, axis=1, arr=vals)
     h = h.sum(axis=0)
     h = h / h.sum()
     return h
 
+
 def filterhalf(row, which='first'):
+    """
+    Retrieves only half of an observation
+
+    For use with pd.DataFrame.apply()
+    """
+
     halfway = row['turnstart'] + (row['turnend'] - row['turnstart']) / 2
     if which == 'first':
         return row.name <= halfway
     else:
         return row.name > halfway
 
+
+def make_filtered_hist(groupeddf, filterfunc=filtermove):
+    """
+    Filter an entire histogram
+
+    For use with pd.DataFrame.groupby()
+    """
+    filtered = groupeddf.apply(filterfunc)
+    filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
+    for c in ['bp', 'wp', 'zet']:
+        filtered[c] = g.loc[filtered.index, c]
+    return filtered
+
+
 def main():
-    e_list = [load_eyetracker_file(e) for e in eyet_files]     # lists of dataframes containing respective data
+
+    # Get a list of dataframes for each kind of data
+    e_list = [load_eyetracker_file(e) for e in eyet_files]
     m_list = [load_mouse_file(m) for m in mous_files]
     g_list = [load_game_file(g) for g in mous_files]
 
-    t = [
-        make_tidy(e_list[i], m_list[i], g_list[i])
-        for i in range(len(e_list))
-    ]                                                          # create tidy dfs per subject along timestamp index
+    # create tidy dfs per subject along timestamp index
+    # t = [make_tidy(e_list[i], m_list[i], g_list[i]) for i in range(len(e_list))]
 
-    mpivs = []                                                 # holding lists for pivoted histograms
+    # Create holding lists for histograms
+    mpivs = []
     epivs = []
     fepivs = []
     fepivs_wide = []
@@ -355,7 +454,8 @@ def main():
     fepivs_half0 = []
     fepivs_half1 = []
 
-    for i in range(len(m_list)):                               # for each subject
+    # For each subject, generate histogrmams
+    for i in range(len(m_list)):
         g = g_list[i]
 
         # MOUSE HISTOGRAMS
@@ -373,13 +473,6 @@ def main():
         eclean_half0 = eclean.loc[half0]
         eclean_half1 = eclean.loc[~half0]
         g = g.set_index('turn')
-
-        def make_filtered_hist(groupeddf, filterfunc=filtermove):
-            filtered = groupeddf.apply(filterfunc)
-            filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
-            for c in ['bp', 'wp', 'zet']:
-                filtered[c] = g.loc[filtered.index, c]
-            return filtered
 
         grouped = eclean.groupby('turn')
         widefunc = lambda x: filtermove(x, cov=[[1.5, 0], [0, 1.5]])
@@ -418,6 +511,7 @@ def main():
         feph1[fil_cols].to_csv(os.path.join(output_dir, 'filtered eye half1 {}.csv').format(i))
 
     return None
+
 
 if __name__ == '__main__':
     main()
