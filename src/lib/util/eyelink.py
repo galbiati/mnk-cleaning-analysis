@@ -18,7 +18,7 @@ import scipy.optimize as opt
 import seaborn as sns
 
 # Internal Python Libraries (alphabetical order)
-sys.path.append('../..')
+sys.path.append('../')
 import clean_eye as dc
 
 sns.set_palette("muted")

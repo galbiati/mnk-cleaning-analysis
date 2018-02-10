@@ -40,12 +40,12 @@ height = bottom - top
 
 def mouse_x_to_tile(x):
     """Converts mouse x coordinates to board-space"""
-    return 9*(x - left) / width
+    return 9 * (x - left) / width
 
 
 def mouse_y_to_tile(y):
     """Converts mouse y coordinates to board-space"""
-    return 4*(y - top) / height
+    return 4 * (y - top) / height
 
 
 def expand_mouse_mt(row):
