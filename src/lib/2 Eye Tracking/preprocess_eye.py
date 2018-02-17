@@ -167,7 +167,7 @@ def load_mouse_file(mf):
     M = pd.DataFrame(index=m, data=x, columns=['x', 'y'])  # new dataframe with timestamp index and coordinates
     M['subject'] = mf[-6:-4]                               # set subject field to initials
     M['human'] = M['subject'].map(subject_initial_map)     # set human field to subject ordinal index
-    M.index = M.index.astype(int)                          # cast timestamp index to integers
+    M.index = M.index.astype(np.int64)                          # cast timestamp index to integers
 
     return M
 
@@ -180,7 +180,7 @@ def load_eyetracker_file(ef):
     D['human'] = D['subject'].map(subject_initial_map)     # set human field to subject ordinal index
 
     # Set start and end fields to ms resolution, integers
-    D[['start', 'end']] = (D[['start', 'end']]*1000).astype(int)
+    D[['start', 'end']] = (D[['start', 'end']]*1000).astype(np.int64)
 
     # Lose the fluff; index by start timestamp
     return D[['start', 'end', 'transx', 'transy', 'human']].set_index('start')
@@ -218,13 +218,13 @@ def make_tidy(e, m, g):
     D.loc[D['mouflag'] == 1, 'moudur'] = D.loc[D['mouflag'] == 1, 'ts'].diff(periods=1)
 
     # Convert board coordinates to tile index
-    D['eyetile'] = D['eyex'].astype(int) + 9*D['eyey'].astype(int)
+    D['eyetile'] = D['eyex'].astype(np.int64) + 9*D['eyey'].astype(np.int64)
     mouvalid = ~pd.isnull(D['moux'])
-    D.loc[mouvalid, 'moutile'] = D.loc[mouvalid, 'moux'].astype(int) + 9*D.loc[mouvalid, 'mouy'].astype(int)
+    D.loc[mouvalid, 'moutile'] = D.loc[mouvalid, 'moux'].astype(np.int64) + 9*D.loc[mouvalid, 'mouy'].astype(np.int64)
 
     # Cast valid tile vals to int (np.nan is float)
-    D.loc[D['eyeflag']==1, 'eyetile'] =  D.loc[D['eyeflag']==1, 'eyetile'].astype(int)
-    D.loc[D['mouflag']==1, 'moutile'] =  D.loc[D['mouflag']==1, 'moutile'].astype(int)
+    D.loc[D['eyeflag']==1, 'eyetile'] =  D.loc[D['eyeflag']==1, 'eyetile'].astype(np.int64)
+    D.loc[D['mouflag']==1, 'moutile'] =  D.loc[D['mouflag']==1, 'moutile'].astype(np.int64)
 
     return D
 
@@ -264,7 +264,7 @@ def mouse_hist(m, g):
 
     m['xtile'] = m['x'].astype(float).map(mouse_x_to_tile) # map mouse coords to board coords
     m['ytile'] = m['y'].astype(float).map(mouse_y_to_tile)
-    m['tile'] = (m['xtile'].astype(int) + 9*m['ytile'].astype(int))    # compute mouse tile
+    m['tile'] = (m['xtile'].astype(np.int64) + 9*m['ytile'].astype(np.int64))    # compute mouse tile
 
     humanfilter = m['is human'] == 1                       # filter on human moves (mouse df)
     mpvt = m.loc[humanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
@@ -299,12 +299,13 @@ def eye_hist(e, g):
     (mousetracking does not record until after ready stops)
     """
 
+    print('epiv fns')
     # Get identifier for each turn
     g['turn'] = 100*g['gi'] + g['mi']
 
     # Filter for valid game status records
-    turnfilter = g['status'].isin(['ready', 'playing', 'draw', 'win'])
-    gp = g.loc[turnfilter]
+    turn_filter = g['status'].isin(['ready', 'playing', 'draw', 'win'])
+    gp = g.loc[turn_filter]
 
     # Set turn start and turn end timestamps
     gp['turnstart'] = gp.index - gp['rt']
@@ -330,10 +331,10 @@ def eye_hist(e, g):
 
     # Convert translated coordinates to tile indices
     evalid = ~pd.isnull(e['transx'])
-    e.loc[evalid, 'tile'] = e.loc[evalid, 'transx'].astype(int) + 9*e.loc[evalid, 'transy'].astype(int)
+    e.loc[evalid, 'tile'] = e.loc[evalid, 'transx'].astype(np.int64) + 9*e.loc[evalid, 'transy'].astype(np.int64)
     e['tile'] = e['tile'].fillna(method='ffill')
     tilefilter = pd.notnull(e['tile'])
-    e.loc[tilefilter, 'tile'] = e.loc[tilefilter, 'tile'].astype(int)
+    e.loc[tilefilter, 'tile'] = e.loc[tilefilter, 'tile'].astype(np.int64)
 
     # Calculate observation durations
     e['dur'] = e.index
@@ -345,22 +346,34 @@ def eye_hist(e, g):
 
     # Get total duration per turn for human trials
     ehumanfilter = e['is human'] == 1
-    epvt = e.loc[ehumanfilter].pivot_table(index='turn', columns='tile', values='dur', aggfunc=np.sum)
-    epvt.columns = epvt.columns.astype(int)
+
+    eendfilter = pd.notnull(e['end'])
+    good_turns = e.loc[eendfilter, 'turn']
+
+    epvt = e.loc[ehumanfilter & eendfilter].pivot_table(
+        index='turn', columns='tile', values='dur', aggfunc=np.sum
+    )
+
+    epvt.columns = epvt.columns.astype(np.int64)
 
     # Calculate response time
     epvt['rt'] = epvt.sum(axis=1)
 
     # Combine off-board locations into single location
-    offboard = [i for i in epvt.columns if (i not in list(range(36)) and type(i)==int)]
+    offboard = [
+        i for i in epvt.columns
+        if (i not in list(range(36)) and type(i) == int)
+    ]
+
     epvt[999] = epvt[offboard].sum(axis=1)
 
     # Drop convenience records
-    turnfilter = g.status.isin(['playing', 'draw', 'win'])
-    ghumanfilter = g['is human'] == 1
+    turn_filter = g.status.isin(['playing', 'draw', 'win'])
+    g_human_filter = g['is human'] == 1
+    g_good_turn_filter = g['turn'].isin(good_turns)
 
     # Get a view of game data indexed by turn (same as epvt)
-    gt = g.loc[turnfilter & ghumanfilter].set_index('turn')
+    gt = g.loc[turn_filter & g_human_filter & g_good_turn_filter].set_index('turn')
     epvt.loc[gt.index, 'true rt'] = gt['rt']
 
     # Set game data values on epvt
@@ -375,6 +388,7 @@ def eye_hist(e, g):
     for c in range(36):
         if c not in epvt.columns:
             epvt[c] = 0
+
 #     print(np.abs(epvt['rt'] - epvt['true rt']).sum())
 
     return e, epvt
@@ -399,7 +413,7 @@ def gausshist(row, cov=1):
 def filtermove(df, cov=1):
     """Apply Gaussian filter to all moves"""
 
-    df_ = df.loc[pd.notnull(df['end'])] # & (df['tile'] >= 0) & (df['tile'] < 36)]
+    df_ = df.loc[pd.notnull(df['end'])]  # & (df['tile'] >= 0) & (df['tile'] < 36)]
     vals = df_.loc[:, ['transy', 'transx', 'dur']].values
 
     gh = lambda x: gausshist(x, cov=cov)
@@ -429,10 +443,13 @@ def make_filtered_hist(groupeddf, g, filterfunc=filtermove):
 
     For use with pd.DataFrame.groupby()
     """
+
     filtered = groupeddf.apply(filterfunc)
     filtered = pd.DataFrame(index=filtered.index, data=np.stack(filtered.values))
+
     for c in ['bp', 'wp', 'zet']:
         filtered[c] = g.loc[filtered.index, c]
+
     return filtered
 
 
@@ -466,14 +483,22 @@ def main():
         # EYE HISTOGRAMS
         e_list[i], epvt = eye_hist(e_list[i], g)
         epivs.append(epvt)
+        print("epiv len", len(epvt))
 
         # FILTERED EYE HISTOGRAMS
         e = e_list[i]
-        eclean = e.loc[pd.notnull(e['end'])]
+        eendfilter = pd.notnull(e['end'])
+        ehumanfilter = e['is human'] == 1
+        eclean = e.loc[eendfilter & ehumanfilter]
         half0 = eclean.apply(filterhalf, axis=1)
         eclean_half0 = eclean.loc[half0]
         eclean_half1 = eclean.loc[~half0]
-        g = g.set_index('turn')
+
+        # good_turns = e.loc[eendfilter, 'turn']
+        # turn_filter = g.status.isin(['playing', 'draw', 'win'])
+        # g_human_filter = g['is human'] == 1
+        # g_good_turn_filter = g['turn'].isin(good_turns)
+        # gt = g.loc[turn_filter & g_human_filter & g_good_turn_filter].set_index('turn')
 
         grouped = eclean.groupby('turn')
         widefunc = lambda x: filtermove(x, cov=[[1.5, 0], [0, 1.5]])
@@ -485,6 +510,7 @@ def main():
         filtered_half0 = make_filtered_hist(eclean_half0.groupby('turn'), g)
         filtered_half1 = make_filtered_hist(eclean_half1.groupby('turn'), g)
 
+        print('filtered len', len(filtered))
         fepivs.append(filtered)
         fepivs_wide.append(filtered_wide)
         fepivs_narrow.append(filtered_narrow)
