@@ -159,7 +159,6 @@ class Subject():
         self.moves = [[self.divide_by_move(self.games[c][g]) for g in range(len(self.games[c]))] for c in range(len(self.conditions))]
         self.hists = self.get_gaze_hists()
         
-
     def get_eye_data(self, filename):
         """Import the eyelink data as pandas dataframe"""
         _ws = ["\t", "    ", "   ", "  "]

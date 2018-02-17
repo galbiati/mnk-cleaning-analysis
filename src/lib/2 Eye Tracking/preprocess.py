@@ -20,7 +20,8 @@ data_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Data/2_eye
 game_dir = os.path.join(data_dir, 'game')
 eyet_dir = os.path.join(data_dir, 'eyet')
 mous_dir = os.path.join(data_dir, 'mous')
-output_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Analysis/2_eye/histograms')
+output_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Analysis/2_eye/histograms/temp')
+os.makedirs(output_dir, exist_ok=True)
 game_files = [os.path.join(game_dir, g) for g in os.listdir(game_dir) if g[-3:]=='csv']
 eyet_files = [os.path.join(eyet_dir, e) for e in os.listdir(eyet_dir) if e[-3:]=='csv']
 mous_files = [os.path.join(mous_dir, m) for m in os.listdir(mous_dir) if m[-3:]=='csv']
@@ -422,7 +423,7 @@ def filterhalf(row, which='first'):
         return row.name > halfway
 
 
-def make_filtered_hist(groupeddf, filterfunc=filtermove):
+def make_filtered_hist(groupeddf, g, filterfunc=filtermove):
     """
     Filter an entire histogram
 
@@ -478,11 +479,11 @@ def main():
         widefunc = lambda x: filtermove(x, cov=[[1.5, 0], [0, 1.5]])
         narrowfunc = lambda x: filtermove(x, cov=[[.66, 0], [0, .66]])
 
-        filtered = make_filtered_hist(grouped)
-        filtered_wide = make_filtered_hist(grouped, filterfunc=widefunc)
-        filtered_narrow = make_filtered_hist(grouped, filterfunc=narrowfunc)
-        filtered_half0 = make_filtered_hist(eclean_half0.groupby('turn'))
-        filtered_half1 = make_filtered_hist(eclean_half1.groupby('turn'))
+        filtered = make_filtered_hist(grouped, g)
+        filtered_wide = make_filtered_hist(grouped, g, filterfunc=widefunc)
+        filtered_narrow = make_filtered_hist(grouped, g, filterfunc=narrowfunc)
+        filtered_half0 = make_filtered_hist(eclean_half0.groupby('turn'), g)
+        filtered_half1 = make_filtered_hist(eclean_half1.groupby('turn'), g)
 
         fepivs.append(filtered)
         fepivs_wide.append(filtered_wide)
