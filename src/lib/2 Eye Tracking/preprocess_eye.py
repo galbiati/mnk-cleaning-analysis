@@ -22,7 +22,8 @@ eyet_dir = os.path.join(data_dir, 'eyet')
 mous_dir = os.path.join(data_dir, 'mous')
 output_dir = os.path.expanduser('~/Google Drive/Bas Zahy Gianni - Games/Analysis/2_eye/histograms/temp')
 os.makedirs(output_dir, exist_ok=True)
-game_files = [os.path.join(game_dir, g) for g in os.listdir(game_dir) if g[-3:]=='csv']
+
+game_files = [os.path.join(game_dir, g) for g in os.listdir(game_dir) if g[-3:] == 'csv']
 eyet_files = [os.path.join(eyet_dir, e) for e in os.listdir(eyet_dir) if e[-3:]=='csv']
 mous_files = [os.path.join(mous_dir, m) for m in os.listdir(mous_dir) if m[-3:]=='csv']
 
