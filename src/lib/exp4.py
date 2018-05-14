@@ -37,10 +37,19 @@ def load_file(filepath):
     # final data fields
     keep = [
         'Subject ID', 'Condition', 'Game Index', 'Status',
-        'Black Position', 'White Position'
+        'Black Position', 'White Position', 'Response Time'
     ]
 
     DF = pd.read_csv(filepath, names=col_names)                                 # load the file with pandas
+    
+    # Recompute response times from timestamps
+    reconi = DF['Status'] == 'reconi'
+    reconf = DF['Status'] == 'reconf'
+
+    trial_starts = DF.loc[reconi, 'Time Stamp'].values
+    trial_ends = DF.loc[reconf, 'Time Stamp'].values
+    DF.loc[reconi, 'Response Time'] =  trial_ends - trial_starts 
+
     DF = DF.loc[DF['Status'].isin(['reconi', 'reconf'])].reset_index(drop=True) # only keep initial and final board states
     DF['Game Index'] = DF.index // 2                                            # fix game indexes
     DF['Condition'] = 'Trained' if 'Trained' in filepath else 'Naive'           # get condition from filepath
@@ -95,7 +104,7 @@ def load_data(filepaths):
     keep = [
         'Subject ID', 'Condition', 'Game Index',
         'Position ID', 'Is Real', 'Black Position', 'White Position',
-        'Black Position (final)', 'White Position (final)'
+        'Black Position (final)', 'White Position (final)', 'Response Time'
     ]
 
     return DF.loc[initial_stim, keep]
