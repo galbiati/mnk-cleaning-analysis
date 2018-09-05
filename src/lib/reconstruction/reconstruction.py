@@ -12,12 +12,14 @@ where the dataframe contains the columns ['bp true', 'wp true', 'bp', 'wp'] for
 the original and recreated positions for each color channel.
 """
 
+
 def string_to_array(board_string):
     """
     Convert a string representation of a board channel to a numpy
     integer array
     """
     return np.array(list(board_string)).astype(int)
+
 
 # Below works with pandas.DataFrame.apply
 
@@ -27,6 +29,7 @@ def expand_row(row):
     """
     bpt, wpt, bp, wp = row[['bp true', 'wp true', 'bp', 'wp']].map(string_to_array)
     return bpt, wpt, bp, wp
+
 
 def score(row):
     """
@@ -38,6 +41,7 @@ def score(row):
     doubleerror = ((bpt != bp) & (wpt != wp)).astype(int).sum()
     return bperror + wperror - doubleerror
 
+
 def extra_pieces(row):
     """
     Counts the number of additional pieces in the reconstruction
@@ -47,6 +51,7 @@ def extra_pieces(row):
     p = bp + wp
 
     return (pt - p < 0).sum()
+
 
 def missing_pieces(row):
     """
@@ -58,6 +63,7 @@ def missing_pieces(row):
 
     return (pt - p > 0).sum()
 
+
 def wrong_color(row):
     """
     Counts the number of pieces with the wrong color in the reconstruction
@@ -68,6 +74,7 @@ def wrong_color(row):
 
     return b2w + w2b
 
+
 def n_pieces(row):
     """
     Counts the number of pieces in the original position
@@ -76,6 +83,7 @@ def n_pieces(row):
     n_bpieces = string_to_array(bpt).sum()
     n_wpieces = string_to_array(wpt).sum()
     return n_bpieces + n_wpieces
+
 
 # Below functions work with np.apply_along_axis
 
@@ -88,6 +96,7 @@ def n_neighbors(x, f):
     c = sig.convolve(xin, f, mode='same')
     return c.reshape(36)
 
+
 def h_neighbors(x):
     """
     Count horizontal neighbors
@@ -95,12 +104,14 @@ def h_neighbors(x):
     f = np.array([[1, 0, 1]])
     return n_neighbors(x, f)
 
+
 def v_neighbors(x):
     """
     Count vertical neighbors
     """
     f = np.array([[1, 0, 1]]).T
     return n_neighbors(x, f)
+
 
 def d_neighbors(x):
     """
