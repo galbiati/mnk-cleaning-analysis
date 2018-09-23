@@ -104,7 +104,7 @@ class PermutationTestBetween(object):
     def _collect_var(self, var_name):
         vals = np.stack(self.samples[var_name])
         index = (vals >= np.abs(self.diff_vals[var_name]))
-        index |= (vals <= np.abs(self.diff_vals[var_name]))
+        index |= (vals <= -np.abs(self.diff_vals[var_name]))
 
         return vals, index
 
