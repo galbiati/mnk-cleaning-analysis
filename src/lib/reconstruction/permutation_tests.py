@@ -55,8 +55,6 @@ class PermutationTestBetween(object):
 
         pivot_table['Condition'] = pivot_table.index.map(self._get_subject_conditions)
 
-        self.condition_filter = pivot_table['Condition'] == 'Trained'
-
         return pivot_table
 
     def _get_diff(self, pivot_table, position_type):
@@ -126,6 +124,7 @@ class PermutationTestBetween(object):
 
     def __call__(self, target_var):
         pivot_table = self._pivot(target_var)
+        self.condition_filter = pivot_table['Condition'] == 'Trained'
 
         self.samples.update({'real': [], 'fake': []})
 
@@ -136,6 +135,8 @@ class PermutationTestBetween(object):
 
         for i in range(self.num_resamples):
             pivot_table['Condition'] = self._resample(pivot_table)
+            self.condition_filter = pivot_table['Condition'] == 'Trained'
+
             self.samples['real'].append(self._get_diff(pivot_table, True))
             self.samples['fake'].append(self._get_diff(pivot_table, False))
 
@@ -172,7 +173,7 @@ class PermutationTestWithin(PermutationTestBetween):
         return df[['Is Real', 'Subject ID']].sample(frac=1, replace=False)
 
     def _resample(self, grouped):
-        applied = grouped.apply(self._resample)
+        applied = grouped.apply(self._resample_helper)
         applied = pd.DataFrame(applied)
 
         melted = pd.melt(
@@ -215,7 +216,7 @@ class PermutationTestWithin(PermutationTestBetween):
 
         print(
             'Trained subjects p:', len(trained[trained_index]) / len(trained),
-            'val:', self.diff_vals['real']
+            'val:', self.diff_vals['trained']
         )
 
         print(
@@ -236,6 +237,7 @@ class PermutationTestWithin(PermutationTestBetween):
 
         for i in range(self.num_resamples):
             self.df['Resampled Is Real'] = self._resample(grouped)
+            pivot_table = self._pivot(target_var)
 
             self.samples['trained'].append(self._get_diff(pivot_table, 'Trained'))
             self.samples['untrained'].append(self._get_diff(pivot_table, 'Untrained'))
