@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Vidrovr Inc.
+# Wei Ji Ma Lab
 # By: Gianni Galbiati
 
 # Standard Libraries
 
-import os
-import multiprocessing as mp
-import threading
-
 # Scientific Libraries
 import numpy as np
-import pandas as pd
 
 # Custom Libraries
 
