@@ -36,16 +36,20 @@ def jackknife_mean(x, num_subsamples=1000):
 class PermutationTestBetween(object):
     """Constructs function for running between-groups permutation test"""
     def __init__(self, df, num_resamples=1000):
-        self.df = df
+        self.df = df.copy(deep=False)
         self.num_resamples = num_resamples
         self.diff_vals = {}
         self.samples = {}
 
     def _get_subject_conditions(self, subject_id):
+        """Mapping func to retrieve the condition each subject ran in"""
+
         subject_filter = self.df['Subject ID'] == subject_id
         return self.df.loc[subject_filter, 'Condition'].values[0]
 
     def _pivot(self, target_var):
+        """Pivot self.df to get per-subject means for target_var"""
+
         pivot_table = self.df.pivot_table(
             index='Subject ID',
             columns='Is Real',
@@ -66,24 +70,31 @@ class PermutationTestBetween(object):
         return x_trained - x_untrained
 
     def _resample(self, pivot_table):
+        """Resample condition assigned to each subject"""
         return pivot_table['Condition'].sample(frac=1, replace=False).values
 
     def _hist(self, ax, diff_name):
+        """Generate a single histogram and add line at true value"""
+
         sns.distplot(
             self.samples[diff_name],
-            bins=200, kde=False, norm_hist=False,
+            bins=np.arange(-.1, .1, .0002),
+            kde=False, norm_hist=False,
             color=colors[diff_name],
-            ax=ax
+            hist_kws={'alpha': .5, 'edgecolor': 'none'},
+            ax=ax,
         )
 
         ax.plot(
-            [self.diff_vals[diff_name], ] * 2, [0, 10],
+            [self.diff_vals[diff_name], ] * 2, [0, 50],
             color=colors[diff_name], label=diff_name.capitalize()
         )
 
         return None
 
     def _plot(self, fig, axes):
+        """Generate complete plot for permutation tests"""
+
         self._hist(axes[0], 'real')
         self._hist(axes[1], 'fake')
 
@@ -91,7 +102,7 @@ class PermutationTestBetween(object):
         plt.setp(
             axes,
             xlabel=r'$\Delta$ Mean',
-            ylim=[0, 25]
+            xlim=[-.1, .1], ylim=[0, 25]
         )
 
         fig.suptitle('Difference in mean between conditions')
@@ -102,6 +113,8 @@ class PermutationTestBetween(object):
         return None
 
     def _collect_var(self, var_name):
+        """Get array and mask to compute p-value for var_name"""
+
         vals = np.stack(self.samples[var_name])
         index = (vals >= np.abs(self.diff_vals[var_name]))
         index |= (vals <= -np.abs(self.diff_vals[var_name]))
@@ -109,6 +122,8 @@ class PermutationTestBetween(object):
         return vals, index
 
     def _report(self):
+        """Compute p-values and print out brief report"""
+
         real, real_index = self._collect_var('real')
         fake, fake_index = self._collect_var('fake')
 
@@ -123,6 +138,8 @@ class PermutationTestBetween(object):
         )
 
     def __call__(self, target_var):
+        """Run the permutation test"""
+
         pivot_table = self._pivot(target_var)
         self.condition_filter = pivot_table['Condition'] == 'Trained'
 
@@ -151,7 +168,7 @@ class PermutationTestWithin(PermutationTestBetween):
     """Constructs function for running within-groups permutation test"""
 
     def _pivot(self, target_var):
-        """Pivots table to get per-suject means"""
+        """Pivot self.df to get per-subject means for target_var"""
 
         if 'Resampled Is Real' not in self.df.columns:
             self.df['Resampled Is Real'] = self.df['Is Real']
@@ -170,9 +187,12 @@ class PermutationTestWithin(PermutationTestBetween):
         return pivot_table
 
     def _resample_helper(self, df):
+        """Apply function for pd.DataFrame.groupby() object"""
         return df[['Is Real', 'Subject ID']].sample(frac=1, replace=False)
 
     def _resample(self, grouped):
+        """Resample the position type labels within each subject"""
+
         applied = grouped.apply(self._resample_helper)
         applied = pd.DataFrame(applied)
 
@@ -186,13 +206,20 @@ class PermutationTestWithin(PermutationTestBetween):
 
     def _get_diff(self, pivot_table, condition):
         """Compute point difference for between groups"""
-        f = self.condition_filter if condition == 'Trained' else ~self.condition_filter
-        x_real = pivot_table.loc[f, True].mean()
-        x_fake = pivot_table.loc[f, False].mean()
+
+        if condition == 'Trained':
+            self.condition_filter = pivot_table['Condition'] == 'Trained'
+        else:
+            self.condition_filter = pivot_table['Condition'] == 'Untrained'
+
+        x_real = pivot_table.loc[self.condition_filter, True].mean()
+        x_fake = pivot_table.loc[self.condition_filter, False].mean()
 
         return x_real - x_fake
 
     def _plot(self, fig, axes):
+        """Generate complete plot for permutation tests"""
+
         self._hist(axes[0], 'trained')
         self._hist(axes[1], 'untrained')
 
@@ -201,7 +228,7 @@ class PermutationTestWithin(PermutationTestBetween):
         plt.setp(
             axes,
             xlabel=r'$\Delta$ Mean',
-            ylim=[0, 25]
+            xlim=[-.1, .1], ylim=[0, 50]
         )
 
         fig.suptitle('Difference in mean between position types')
@@ -211,6 +238,8 @@ class PermutationTestWithin(PermutationTestBetween):
         return None
 
     def _report(self):
+        """Compute p-values and print out brief report"""
+
         trained, trained_index = self._collect_var('trained')
         untrained, untrained_index = self._collect_var('untrained')
 
@@ -225,6 +254,8 @@ class PermutationTestWithin(PermutationTestBetween):
         )
 
     def __call__(self, target_var):
+        """Run the permutation test"""
+
         pivot_table = self._pivot(target_var)
         grouped = self.df.groupby('Subject ID', sort=False)
 
