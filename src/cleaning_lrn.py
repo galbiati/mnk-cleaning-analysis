@@ -58,10 +58,13 @@ def clean(csv_file, mouse=False):
     data = data.reindex_axis(reindex_list, axis=1)
     return data
 
+
 def is_computer(rt):
     return "0" if rt > 0 else "1"
 
+
 subject_names = ["AB", "CE", "GB", "GL", "HS", "KL", "MS", "SW", "TQ", "VC", "XM", "XZ"]
+
 
 def main():
     subject_dict = dict(zip(subject_names, range(len(subject_names))))
@@ -80,6 +83,8 @@ def main():
 
         d = d.reindex_axis(column_order, axis=1)
         d.to_csv('../Clean/' + fn)
+
+    return None
 
 if __name__=='__main__':
     main()
