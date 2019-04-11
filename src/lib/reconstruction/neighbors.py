@@ -24,7 +24,7 @@ dummy = signal.convolve2d(np.ones((4, 9)), count_filter, mode='same')
 
 
 def count_neighbors(position_array):
-    """
+    """Count the neighbors at each location in a position
 
     Arguments
     ---------
@@ -43,9 +43,32 @@ def count_neighbors(position_array):
     return counts / dummy
 
 
-def get_adjacency(row,
-                  bp_name='Black Position',
-                  wp_name='White Position'):
+class FilterByOccupied(object):
+    """Filter target measure for only occupied locations
+
+    To be used with pd.DataFrame.apply
+
+    Arguments
+    ---------
+    target : str
+        column in dataframe to be filtered
+    """
+    def __init__(self, target):
+        self.target = target
+
+    def __call__(self, row):
+        by_location = row[self.target]
+        black_position = row['Black Position']
+        white_position = row['White Position']
+
+        return [by_location[i]
+                for i, pieces in enumerate(zip(black_position, white_position))
+                if '1' in pieces]
+
+
+def get_adjacency(row, bp_name='Black Position', wp_name='White Position'):
+    """Compute the per-board average fraction of neighbors"""
+
     bp_string = row[bp_name]
     wp_string = row[wp_name]
 
@@ -79,6 +102,7 @@ def get_adjacency(row,
 def get_adjacency_per_location(row,
                                bp_name='Black Position',
                                wp_name='White Position'):
+    """Compute the per_location number of neighbors """
     bp_string = row[bp_name]
     wp_string = row[wp_name]
 
@@ -93,8 +117,11 @@ def get_adjacency_per_location(row,
     same_neighbors = black_neighbors * bp + white_neighbors * wp
     opposite_neighbors = black_neighbors * wp + white_neighbors * bp
 
+    all_neighbors = all_neighbors.reshape(36)
+    same_neighbors = same_neighbors.reshape(36)
+    opposite_neighbors = opposite_neighbors.reshape(36)
 
-    return all_neighbors.reshape(36), same_neighbors.reshape(36), opposite_neighbors.reshape(36)
+    return all_neighbors, same_neighbors, opposite_neighbors
 
 
 def main():

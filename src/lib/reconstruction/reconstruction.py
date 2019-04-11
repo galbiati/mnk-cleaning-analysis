@@ -14,27 +14,20 @@ the original and recreated positions for each color channel.
 
 
 def string_to_array(board_string):
-    """
-    Convert a string representation of a board channel to a numpy
-    integer array
-    """
+    """Convert a string representation of a board channel to a numpy array"""
     return np.array(list(board_string)).astype(int)
 
 
-# Below works with pandas.DataFrame.apply
+# Below work with pandas.DataFrame.apply
 
 def expand_row(row):
-    """
-    Utility function for extracting positions in pandas dataframe
-    """
+    """Utility function for extracting positions in pandas dataframe"""
     bpt, wpt, bp, wp = row[['bp true', 'wp true', 'bp', 'wp']].map(string_to_array)
     return bpt, wpt, bp, wp
 
 
 def score(row):
-    """
-    Returns the score (number INCORRECT) for each item
-    """
+    """Returns the score (number INCORRECT) for each item"""
     bpt, wpt, bp, wp = expand_row(row)
     bperror = (bpt != bp).astype(int).sum()
     wperror = (wpt != wp).astype(int).sum()
@@ -43,9 +36,7 @@ def score(row):
 
 
 def extra_pieces(row):
-    """
-    Counts the number of additional pieces in the reconstruction
-    """
+    """Counts the number of additional pieces in the reconstruction"""
     bpt, wpt, bp, wp = expand_row(row)
     pt = bpt + wpt
     p = bp + wp
@@ -54,9 +45,7 @@ def extra_pieces(row):
 
 
 def missing_pieces(row):
-    """
-    Counts the number of missing pieces in the reconstruction
-    """
+    """Counts the number of missing pieces in the reconstruction"""
     bpt, wpt, bp, wp = expand_row(row)
     pt = bpt + wpt
     p = bp + wp
@@ -65,9 +54,7 @@ def missing_pieces(row):
 
 
 def wrong_color(row):
-    """
-    Counts the number of pieces with the wrong color in the reconstruction
-    """
+    """Counts number of pieces with the wrong color in the reconstruction"""
     bpt, wpt, bp, wp = expand_row(row)
     b2w = ((bpt == 1) & (wp == 1)).sum()
     w2b = ((wpt == 1) & (bp == 1)).sum()
@@ -76,9 +63,7 @@ def wrong_color(row):
 
 
 def n_pieces(row):
-    """
-    Counts the number of pieces in the original position
-    """
+    """Counts the number of pieces in the original position"""
     bpt, wpt = row[['bp true', 'wp true']]
     n_bpieces = string_to_array(bpt).sum()
     n_wpieces = string_to_array(wpt).sum()
@@ -88,9 +73,9 @@ def n_pieces(row):
 # Below functions work with np.apply_along_axis
 
 def n_neighbors(x, f):
-    """
+    """Counts number of neighbors by convolving with appropriate filter
+
     Operates with np.apply_along_axis
-    Counts number of neighbors by convolving with appropriate filter
     """
     xin = x.reshape([4, 9])
     c = sig.convolve(xin, f, mode='same')
@@ -98,25 +83,19 @@ def n_neighbors(x, f):
 
 
 def h_neighbors(x):
-    """
-    Count horizontal neighbors
-    """
+    """Count horizontal neighbors"""
     f = np.array([[1, 0, 1]])
     return n_neighbors(x, f)
 
 
 def v_neighbors(x):
-    """
-    Count vertical neighbors
-    """
+    """Count vertical neighbors"""
     f = np.array([[1, 0, 1]]).T
     return n_neighbors(x, f)
 
 
 def d_neighbors(x):
-    """
-    Count diagonal neighbors
-    """
+    """Count diagonal neighbors"""
     f = np.diag(np.array([1, 0, 1]))
     f = f + f[:, ::-1]
     return n_neighbors(x, f)

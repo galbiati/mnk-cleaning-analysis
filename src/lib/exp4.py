@@ -1,11 +1,16 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# Wei Ji Ma Lab
+# By: Gianni Galbiati
+
 import pandas as pd
 
 from .utility_functions import *
 
-def load_file(filepath):
-    """
-    Loads a single data file into a dataframe and
-    appends any necessary identifier columns
+
+def load_file(file_path):
+    """Loads file and appends any necessary identifier columns
 
     This strips the sequences of moves out from the data,
     along with any mousetracking data. A different file loading function
@@ -14,18 +19,23 @@ def load_file(filepath):
     NOTE: this function will not work if the files are not contained in
     appropriately named directories
 
-    Arguments:
-    ----------
-    :filepath is a complete relative or absolute filepath pointing to a csv file
+    Arguments
+    ---------
+    file_path : str
+        a file path pointing to a csv file containing clean experiment data
 
-    Outputs:
-    ----------
-    :DF[keep] is a pandas DataFrame containing the relevant fields
+    Returns
+    -------
+    df : pd.DataFrame
+         DataFrame containing relevant fields
     """
 
-    assert filepath[-3:] == 'csv'                                               # throw an error if not a csv
+    # Throw an error if file is not a csv
+    assert file_path[-3:] == 'csv'
 
-    # pretty names for data fields
+    initials = file_path.split('/')[-1].split('.')[0].split('_')[-1]
+
+    # Pretty names for data fields
     col_names = [
         'Index', 'Subject ID', 'Player Color',
         'Game Index', 'Move Index', 'Status',
@@ -34,58 +44,69 @@ def load_file(filepath):
         'Mouse Timestamps', 'Mouse Position'
     ]
 
-    # final data fields
+    # Final data fields
     keep = [
-        'Subject ID', 'Condition', 'Game Index', 'Status',
+        'Subject ID', 'Initials', 'Condition', 'Game Index', 'Status',
         'Black Position', 'White Position', 'Response Time'
     ]
 
-    DF = pd.read_csv(filepath, names=col_names)                                 # load the file with pandas
+    df = pd.read_csv(file_path, names=col_names)
     
     # Recompute response times from timestamps
-    reconi = DF['Status'] == 'reconi'
-    reconf = DF['Status'] == 'reconf'
+    reconi = df['Status'] == 'reconi'
+    reconf = df['Status'] == 'reconf'
 
-    trial_starts = DF.loc[reconi, 'Time Stamp'].values
-    trial_ends = DF.loc[reconf, 'Time Stamp'].values
-    DF.loc[reconi, 'Response Time'] =  trial_ends - trial_starts 
+    trial_starts = df.loc[reconi, 'Time Stamp'].values
+    trial_ends = df.loc[reconf, 'Time Stamp'].values
+    df.loc[reconi, 'Response Time'] =  trial_ends - trial_starts
 
-    DF = DF.loc[DF['Status'].isin(['reconi', 'reconf'])].reset_index(drop=True) # only keep initial and final board states
-    DF['Game Index'] = DF.index // 2                                            # fix game indexes
-    DF['Condition'] = 'Trained' if 'Trained' in filepath else 'Naive'           # get condition from filepath
+    # Only keep the initial and final board states
+    df = df.loc[df['Status'].isin(['reconi', 'reconf'])].reset_index(drop=True)
 
-    return DF[keep]
+    # Fix game indices
+    df['Game Index'] = df.index // 2
+
+    # Extract training condition from file path
+    df['Condition'] = 'Trained' if 'Trained' in file_path else 'Naive'
+
+    # Add initials
+    df['Initials'] = initials
+
+    # Filter out irrelevant columns
+    df = df[keep]
+
+    return df
 
 
-def load_data(filepaths):
+def load_data(file_path_list):
+    """Loads all data into a single dataframe and does additional preprocessing
+
+    Arguments
+    ---------
+    file_path_list: list
+        list of paths to data files
+
+    Returns
+    -------
+    df : pd.DataFrame
+        DataFrame containing relevant fields
     """
-    Loads all data into a single dataframe
-    and does some additional preprocessing
 
-    TODO: add real/fake identifiers for each position!
+    # Load all file paths into individual dataframes and concatenate them
+    loaded = [load_file(path) for path in file_path_list]
+    df = pd.concat(loaded).reset_index(drop=True)
 
-    Arguments:
-    ----------
-    :filepaths is a list of complete relative or absolute filepaths pointing to
-               csv files
+    # Get cleaner names for status field
+    df['Status'] = df['Status'].map({'reconi': 'I', 'reconf': 'F'})
 
-    Outputs:
-    ----------
-    :DFi[keep] is a pandas DataFrame with the relevant columns
-    """
+    # Assign an ID to each unique position
+    #   NOTE: could make this slightly more efficient by melting first
 
-    # get all data into a single dataframe
-    loaded = [load_file(path) for path in filepaths]                            # load all files in filepaths into individual dataframes
-    DF = pd.concat(loaded).reset_index(drop=True)                               # glue 'em
+    df['Position ID'] = df['Black Position'] + df['White Position']
+    first_subject = df['Subject ID'] == df['Subject ID'].unique()[0]
+    initial_stim = df['Status'] == 'I'
 
-    DF['Status'] = DF['Status'].map({'reconi': 'I', 'reconf': 'F'})             # pretty names for status
-
-    # assign an ID to every unique position
-    # NOTE: could make this slightly more efficient by melting first
-    DF['Position ID'] = DF['Black Position'] + DF['White Position']
-    first_subject = DF['Subject ID'] == DF['Subject ID'].unique()[0]
-    initial_stim = DF['Status'] == 'I'
-    # position_index = DF.loc[first_subject & initial_stim, 'Position ID']
+    # position_index = df.loc[first_subject & initial_stim, 'Position ID']
     # position_map = dict(zip(position_index, np.arange(len(position_index))))
     position_map = pd.read_csv(
         '../etc/4 Reconstruction/position_map.csv',
@@ -93,31 +114,32 @@ def load_data(filepaths):
         names=['Position', 'Is Real', 'Position ID']
     )
 
-    DF['Is Real'] = DF['Position ID'].map(position_map['Is Real']).values
-    DF['Position ID'] = DF['Position ID'].map(position_map['Position ID']).values
+    df['Is Real'] = df['Position ID'].map(position_map['Is Real']).values
+    df['Position ID'] = df['Position ID'].map(position_map['Position ID']).values
 
-    # "melt" initial and final observations (stimulus and final submission) into single rows
-    DF.loc[initial_stim, 'Black Position (final)'] = DF.loc[~initial_stim, 'Black Position'].values
-    DF.loc[initial_stim, 'White Position (final)'] = DF.loc[~initial_stim, 'White Position'].values
+    # Group stimulus and final submission into single rows
+    df.loc[initial_stim, 'Black Position (final)'] = df.loc[~initial_stim, 'Black Position'].values
+    df.loc[initial_stim, 'White Position (final)'] = df.loc[~initial_stim, 'White Position'].values
 
-    # only keep what we're actively using
+    # Filter out irrelevant columns
     keep = [
-        'Subject ID', 'Condition', 'Game Index',
+        'Subject ID', 'Initials', 'Condition', 'Game Index',
         'Position ID', 'Is Real', 'Black Position', 'White Position',
         'Black Position (final)', 'White Position (final)', 'Response Time'
     ]
 
-    return DF.loc[initial_stim, keep]
+    df = df.loc[initial_stim, keep]
 
-def process_data(DF):
+    return df
+
+
+def process_data(df):
+    """Adding auxilliary information and count errors
+
+    TODO: make this a class to retain eg bpi, bpf, wpi, wpf?
     """
-    Processes data, adding auxilliary information and counting errors
-    of various types
 
-    TODO: make this a class to retain eg bpi, bpf, wpi, wpf
-    """
-
-    bpi, wpi, bpf, wpf = unpack_positions(DF)
+    bpi, wpi, bpf, wpf = unpack_positions(df)
 
     black_errors = (bpf != bpi).astype(int)
     white_errors = (wpf != wpi).astype(int)
@@ -131,31 +153,30 @@ def process_data(DF):
     type_3b = ((wpf == 1) & (bpi == 1)).astype(int).sum(axis=0)
     type_3w = ((bpf == 1) & (wpi == 1)).astype(int).sum(axis=0)
 
-    DF['Num Black Pieces'] = bpi.sum(axis=0)
-    DF['Num White Pieces'] = wpi.sum(axis=0)
-    DF['Num Pieces'] = DF['Num Black Pieces'] + DF['Num White Pieces']
-    DF['Total Black Errors'] = black_errors.sum(axis=0)
-    DF['Total White Errors'] = white_errors.sum(axis=0)
-    DF['Total Errors'] = np.ceil((black_errors + white_errors) / 2).sum(axis=0)
+    df['Num Black Pieces'] = bpi.sum(axis=0)
+    df['Num White Pieces'] = wpi.sum(axis=0)
+    df['Num Pieces'] = df['Num Black Pieces'] + df['Num White Pieces']
+    df['Total Black Errors'] = black_errors.sum(axis=0)
+    df['Total White Errors'] = white_errors.sum(axis=0)
+    df['Total Errors'] = np.ceil((black_errors + white_errors) / 2).sum(axis=0)
 
-    DF['Type I Errors (black)'] = type_1b - type_3w
-    DF['Type I Errors (white)'] = type_1w - type_3b
-    DF['Type I Errors'] = type_1b + type_1w - type_3b - type_3w
+    df['Type I Errors (black)'] = type_1b - type_3w
+    df['Type I Errors (white)'] = type_1w - type_3b
+    df['Type I Errors'] = type_1b + type_1w - type_3b - type_3w
 
-    DF['Type II Errors (black)'] = type_2b - type_3b
-    DF['Type II Errors (white)'] = type_2w - type_3w
-    DF['Type II Errors'] = type_2b + type_2w - type_3b - type_3w
+    df['Type II Errors (black)'] = type_2b - type_3b
+    df['Type II Errors (white)'] = type_2w - type_3w
+    df['Type II Errors'] = type_2b + type_2w - type_3b - type_3w
 
-    DF['Type III Errors (black)'] = type_3b
-    DF['Type III Errors (white)'] = type_3w
-    DF['Type III Errors'] = type_3b + type_3w
+    df['Type III Errors (black)'] = type_3b
+    df['Type III Errors (white)'] = type_3w
+    df['Type III Errors'] = type_3b + type_3w
 
-    return DF
+    return df
 
-def unpack_positions(DF):
-    """
-    Unpacks independent black and white positions for initial stimuli
-    and responses from string representations in DF into numpy arrays
+
+def unpack_positions(df):
+    """Converts positions for stimuli and responses to numpy arrays
     """
 
     fields = [
@@ -163,5 +184,5 @@ def unpack_positions(DF):
         'Black Position (final)', 'White Position (final)'
     ]
 
-    bpi, wpi, bpf, wpf = [series_to_array(DF[field]) for field in fields]
+    bpi, wpi, bpf, wpf = [series_to_array(df[field]) for field in fields]
     return bpi, wpi, bpf, wpf
