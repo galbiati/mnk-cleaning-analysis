@@ -21,6 +21,9 @@ def build_poisson_model(exogenous_df, endogenous_values):
     For replacing Chi-Sq tests - see Krushke's book for details
     TODO: more specific citation please
     TODO: also cite PyMC tutorial showing this sort of model
+    TODO: even though I've tried to make this pretty general,
+          it's still for a 2x3 design unfortunately
+          revisit this to generalize to an NxM design someday!
 
     Arguments
     ---------
@@ -42,13 +45,11 @@ def build_poisson_model(exogenous_df, endogenous_values):
         sds = []
         coeffs = []
 
-        # Create intercept coefficient
+        # Create intercept coefficient; no prior on variance
         b0 = Normal('intercept', mu=0, sd=10)
         coeffs.append(b0)
 
-        # Create a coefficient for all but one indicator
-        # (Since indicators are mutually exclusive within categories,
-        # using all of them will over-parameterize the model)
+        # Create a coefficient for all other indicators with prior on variance
         for c in exogenous_df.columns[1:]:
             # Theano hates ":"
             variable_name = c.replace(':', '_')
