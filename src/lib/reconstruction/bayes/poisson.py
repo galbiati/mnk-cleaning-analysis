@@ -18,9 +18,10 @@ from theano import tensor as T
 def build_poisson_model(exogenous_df, endogenous_values):
     """Build a Poisson regression model
 
-    For replacing Chi-Sq tests - see Krushke's book for details
-    TODO: more specific citation please
-    TODO: also cite PyMC tutorial showing this sort of model
+    For replacing Chi-Sq tests
+    (see Krushke DBA chapter 22)
+    (pymc3 example: https://docs.pymc.io/notebooks/GLM-poisson-regression.html)
+
     TODO: even though I've tried to make this pretty general,
           it's still for a 2x3 design unfortunately
           revisit this to generalize to an NxM design someday!
