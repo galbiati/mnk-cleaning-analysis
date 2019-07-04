@@ -19,7 +19,7 @@ class BayesDFCompute(object):
         self.bayes_columns = ['subject', 'condition_mask', 'occupied',
                               'same', 'opposite',
                               'position_type', 'position_id',
-                              'errors']
+                              'errors_1', 'errors_2', 'errors_3']
 
     @staticmethod
     def get_error_rates(df, error_type):
