@@ -66,7 +66,7 @@ class BayesDFCompute(object):
             board_set[f'errors_{i}'] = g.apply(
                 lambda x: self.get_error_rates(x, i))
 
-        bayes_data = self.get_bayes_data()
+        bayes_data = self.get_bayes_data(tidy)
         model_df = pd.DataFrame(data=bayes_data,
                                 columns=self.bayes_columns)
 
