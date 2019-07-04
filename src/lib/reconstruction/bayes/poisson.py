@@ -30,7 +30,7 @@ def build_poisson_model(exogenous_df, endogenous_values):
     ---------
     exogenous_df : pandas.DataFrame
         a dataframe containing indicators for the exogenous variables
-
+        this df is expected to be produced using patsy
 
     endogenous_values : numpy.ndarray
         an array of count data corresponding to rows of exogenous_df
