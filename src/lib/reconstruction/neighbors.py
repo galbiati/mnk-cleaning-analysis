@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Vidrovr Inc.
+# Wei Ji Ma Lab
 # By: Gianni Galbiati
 
 # Standard Libraries

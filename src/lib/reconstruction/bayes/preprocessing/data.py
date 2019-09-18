@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 # Internal libraries
-from ..errors import get_errors_per_location
+from src.lib.reconstruction.errors import get_errors_per_location
 
 
 class BayesDFCompute(object):
