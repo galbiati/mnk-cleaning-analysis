@@ -12,8 +12,7 @@ import pandas as pd
 
 # Internal libraries
 from ....reconstruction.errors import get_errors_per_location
-from ....reconstruction.neighbors import (get_adjacency,
-                                          get_adjacency_per_location)
+from ....reconstruction.neighbors import get_adjacency_per_location
 
 
 def load_tidy(tidy_path):
