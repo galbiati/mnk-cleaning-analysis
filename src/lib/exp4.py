@@ -36,19 +36,14 @@ def load_file(file_path):
     initials = file_path.split('/')[-1].split('.')[0].split('_')[-1]
 
     # Pretty names for data fields
-    col_names = [
-        'Index', 'Subject ID', 'Player Color',
-        'Game Index', 'Move Index', 'Status',
-        'Black Position', 'White Position', 'Action',
-        'Response Time', 'Time Stamp',
-        'Mouse Timestamps', 'Mouse Position'
-    ]
+    col_names = ['Index', 'Subject ID', 'Player Color',
+                 'Game Index', 'Move Index', 'Status',
+                 'Black Position', 'White Position', 'Action',
+                 'Mouse Timestamps', 'Mouse Position']
 
     # Final data fields
-    keep = [
-        'Subject ID', 'Initials', 'Condition', 'Game Index', 'Status',
-        'Black Position', 'White Position', 'Response Time'
-    ]
+    keep = ['Subject ID', 'Initials', 'Condition', 'Game Index', 'Status',
+            'Black Position', 'White Position', 'Response Time']
 
     df = pd.read_csv(file_path, names=col_names)
     
@@ -58,10 +53,11 @@ def load_file(file_path):
 
     trial_starts = df.loc[reconi, 'Time Stamp'].values
     trial_ends = df.loc[reconf, 'Time Stamp'].values
-    df.loc[reconi, 'Response Time'] =  trial_ends - trial_starts
+    df.loc[reconi, 'Response Time'] = trial_ends - trial_starts
 
     # Only keep the initial and final board states
-    df = df.loc[df['Status'].isin(['reconi', 'reconf'])].reset_index(drop=True)
+    df = df.loc[df['Status'].isin(['reconi', 'reconf'])]
+    df.reset_index(inplace=True, drop=True)
 
     # Fix game indices
     df['Game Index'] = df.index // 2
@@ -79,11 +75,11 @@ def load_file(file_path):
 
 
 def load_data(file_path_list):
-    """Loads all data into a single dataframe and does additional preprocessing
+    """Load all data into a single dataframe and preprocess.
 
     Arguments
     ---------
-    file_path_list: list
+    file_path_list : list
         list of paths to data files
 
     Returns
@@ -98,35 +94,28 @@ def load_data(file_path_list):
 
     # Get cleaner names for status field
     df['Status'] = df['Status'].map({'reconi': 'I', 'reconf': 'F'})
-
-    # Assign an ID to each unique position
-    #   NOTE: could make this slightly more efficient by melting first
-
-    df['Position ID'] = df['Black Position'] + df['White Position']
-    first_subject = df['Subject ID'] == df['Subject ID'].unique()[0]
     initial_stim = df['Status'] == 'I'
 
-    # position_index = df.loc[first_subject & initial_stim, 'Position ID']
-    # position_map = dict(zip(position_index, np.arange(len(position_index))))
-    position_map = pd.read_csv(
-        '../etc/4 Reconstruction/position_map.csv',
-        index_col=0, skiprows=1,
-        names=['Position', 'Is Real', 'Position ID']
-    )
+    # Assign an ID to each unique position
+    df['Position ID'] = df['Black Position'] + df['White Position']
+
+    position_map = pd.read_csv('../etc/4 Reconstruction/position_map.csv',
+                               index_col=0, skiprows=1,
+                               names=['Position', 'Is Real', 'Position ID'])
 
     df['Is Real'] = df['Position ID'].map(position_map['Is Real']).values
     df['Position ID'] = df['Position ID'].map(position_map['Position ID']).values
 
     # Group stimulus and final submission into single rows
-    df.loc[initial_stim, 'Black Position (final)'] = df.loc[~initial_stim, 'Black Position'].values
-    df.loc[initial_stim, 'White Position (final)'] = df.loc[~initial_stim, 'White Position'].values
+    for color in ['Black', 'White']:
+        final_position = df.loc[~initial_stim, f'{color} Position'].values
+        df.loc[initial_stim, f'{color} Position (final)'] = final_position
 
     # Filter out irrelevant columns
-    keep = [
-        'Subject ID', 'Initials', 'Condition', 'Game Index',
-        'Position ID', 'Is Real', 'Black Position', 'White Position',
-        'Black Position (final)', 'White Position (final)', 'Response Time'
-    ]
+    keep = ['Subject ID', 'Initials', 'Condition', 'Game Index',
+            'Position ID', 'Is Real', 'Black Position', 'White Position',
+            'Black Position (final)', 'White Position (final)',
+            'Response Time']
 
     df = df.loc[initial_stim, keep]
 
@@ -134,10 +123,8 @@ def load_data(file_path_list):
 
 
 def process_data(df):
-    """Adding auxilliary information and count errors
-
-    TODO: make this a class to retain eg bpi, bpf, wpi, wpf?
-    """
+    """Add auxilliary information and count errors."""
+    # TODO: make this a class to retain eg bpi, bpf, wpi, wpf?
 
     bpi, wpi, bpf, wpf = unpack_positions(df)
 
@@ -179,10 +166,8 @@ def unpack_positions(df):
     """Converts positions for stimuli and responses to numpy arrays
     """
 
-    fields = [
-        'Black Position', 'White Position',
-        'Black Position (final)', 'White Position (final)'
-    ]
+    fields = ['Black Position', 'White Position',
+              'Black Position (final)', 'White Position (final)']
 
     bpi, wpi, bpf, wpf = [series_to_array(df[field]) for field in fields]
     return bpi, wpi, bpf, wpf

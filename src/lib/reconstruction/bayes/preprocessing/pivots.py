@@ -79,17 +79,13 @@ def load_tidy(tidy_path):
     distances = ((np.argwhere(blank_board == 0) - center) ** 2).sum(axis=1)
     distances = np.sqrt(distances)
 
-    board_set['distance_to_center'] = np.tile(distances,
-                                              [len(board_set), 1]).tolist()
+    board_set['distance_to_center'] = np.tile(distances, [len(board_set), 1]).tolist()
 
     return tidy_df, board_set
 
 
 def compute_extra_tidy(tidy_df):
-    """Convert a trial-wise dataframe into a trial-location-wise dataframe.
-
-
-    """
+    """Convert a trial-wise dataframe into a trial-location-wise dataframe."""
 
     # Extract exogenous variables
     x_same = np.concatenate(tidy_df['adjacency_same'].values)
@@ -97,12 +93,9 @@ def compute_extra_tidy(tidy_df):
     x_occupied = np.concatenate(tidy_df['occupied'].values)
     x_condition_mask = np.concatenate(tidy_df['condition_mask'].values)
 
-    x_subject = np.concatenate(
-        tidy_df['subject_idx'].map(_expand_indicators).values)
-    x_position_type = np.concatenate(
-        tidy_df['Is Real'].map(_expand_indicators).values)
-    x_position_id = np.concatenate(
-        tidy_df['Position ID'].map(_expand_indicators).values)
+    x_subject = np.concatenate(tidy_df['subject_idx'].map(_expand_indicators).values)
+    x_position_type = np.concatenate(tidy_df['Is Real'].map(_expand_indicators).values)
+    x_position_id = np.concatenate(tidy_df['Position ID'].map(_expand_indicators).values)
 
     # Extract endogenous variables
     y1 = np.concatenate(tidy_df['errors_1'].values)
@@ -126,8 +119,7 @@ def compute_extra_tidy(tidy_df):
         if c not in ['condition_mask', 'same', 'opposite']:
             extra_tidy_df[c] = extra_tidy_df[c].astype(int)
 
-    extra_tidy_df['condition_indicator'] = extra_tidy_df.condition_mask.map(
-        {'Trained': 1, 'Untrained': 0}).astype(int)
+    extra_tidy_df['condition_indicator'] = extra_tidy_df.condition_mask.map({'Trained': 1, 'Untrained': 0}).astype(int)
 
     # Set up condition and position type indicators
     trained_sel = extra_tidy_df['condition_mask'] == 'Trained'
@@ -138,8 +130,7 @@ def compute_extra_tidy(tidy_df):
     # Convert subject indices for columnar format
     # Eg, indexes start from 0 for both trained/untrained groups
 
-    extra_tidy_df.loc[untrained_sel, 'subject'] = extra_tidy_df.loc[
-                                                       untrained_sel, 'subject'] % 19
+    extra_tidy_df.loc[untrained_sel, 'subject'] = extra_tidy_df.loc[untrained_sel, 'subject'] % 19
 
     # But still cache a unique indicator for each subject
     extra_tidy_df['usubject'] = extra_tidy_df['subject']
@@ -147,14 +138,12 @@ def compute_extra_tidy(tidy_df):
 
     # Same for real/fake positions
     natural_ids = extra_tidy_df.loc[natural_sel, 'position_id'].astype(int)
-    extra_tidy_df.loc[
-        natural_sel, 'position_id'] = natural_ids - natural_ids.min()
+    extra_tidy_df.loc[natural_sel, 'position_id'] = natural_ids - natural_ids.min()
 
     # Get an integer indicator for the *type* of error that was made
     # Where a 0 indicates no error
     error_columns = ['errors_1', 'errors_2', 'errors_3']
-    extra_tidy_df['has_error'] = extra_tidy_df[error_columns].astype(
-        int).sum(axis=1)
+    extra_tidy_df['has_error'] = extra_tidy_df[error_columns].astype(int).sum(axis=1)
 
     error_sel = extra_tidy_df['has_error'] == 1
 
