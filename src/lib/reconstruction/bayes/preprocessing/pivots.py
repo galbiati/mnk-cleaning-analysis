@@ -46,7 +46,7 @@ def load_tidy(tidy_path):
 
     # Expand colors over board locations
     colors = board_set.apply(get_color_per_location, axis=1)
-    colors_df = pd.DataFrame(colors.tolist(),
+    colors_df = pd.DataFrame(colors.map(lambda x: x[np.newaxis, :]).tolist(),
                              index=board_set.index, columns=['colors'])
 
     # Compute errors at each board location
