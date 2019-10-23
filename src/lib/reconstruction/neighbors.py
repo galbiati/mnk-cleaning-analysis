@@ -6,10 +6,6 @@
 
 # Standard Libraries
 
-import os
-import multiprocessing as mp
-import threading
-
 # Scientific Libraries
 import numpy as np
 import pandas as pd
@@ -66,14 +62,21 @@ class FilterByOccupied(object):
                 if '1' in pieces]
 
 
-def get_adjacency(row, bp_name='Black Position', wp_name='White Position'):
-    """Compute the per-board average fraction of neighbors"""
+def _expand_arrays(row, bp_name='Black Position', wp_name='White Position'):
+    """Return position representation as binary arrays."""
 
     bp_string = row[bp_name]
     wp_string = row[wp_name]
 
     bp = position_string_to_array(bp_string)
     wp = position_string_to_array(wp_string)
+
+    return bp, wp
+
+
+def get_adjacency(row, bp_name='Black Position', wp_name='White Position'):
+    """Compute the per-board average fraction of neighbors"""
+    bp, wp = _expand_arrays(row, bp_name=bp_name, wp_name=wp_name)
 
     p = bp + wp
 
@@ -103,13 +106,8 @@ def get_adjacency_per_location(row,
                                bp_name='Black Position',
                                wp_name='White Position'):
     """Compute the per_location number of neighbors """
-    bp_string = row[bp_name]
-    wp_string = row[wp_name]
+    bp, wp = _expand_arrays(row, bp_name=bp_name, wp_name=wp_name)
 
-    bp = position_string_to_array(bp_string)
-    wp = position_string_to_array(wp_string)
-
-    # p = bp + wp
     black_neighbors = count_neighbors(bp)
     white_neighbors = count_neighbors(wp)
     all_neighbors = black_neighbors + white_neighbors
@@ -122,6 +120,16 @@ def get_adjacency_per_location(row,
     opposite_neighbors = opposite_neighbors.reshape(36)
 
     return all_neighbors, same_neighbors, opposite_neighbors
+
+
+def get_color_per_location(row,
+                           bp_name='Black Position',
+                           wp_name='White Position'):
+    """Compute the per_location number of neighbors."""
+    bp, wp = _expand_arrays(row, bp_name=bp_name, wp_name=wp_name)
+
+    # Set black to 1, white to -1, empty to 0
+    return bp - wp
 
 
 def main():
