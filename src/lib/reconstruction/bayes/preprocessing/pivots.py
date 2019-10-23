@@ -12,49 +12,57 @@ import pandas as pd
 
 # Internal libraries
 from ....reconstruction.errors import get_errors_per_location
-from ....reconstruction.neighbors import get_adjacency_per_location
+from ....reconstruction.neighbors import get_adjacency_per_location, get_color_per_location
 
 
 def load_tidy(tidy_path):
+    """Load dataframe with pre-computed metrics in trial-wise tidy format."""
+
+    # Read dataframe
     tidy_df = pd.read_csv(tidy_path, index_col=0)
-    tidy_df['Condition'] = tidy_df['Condition'].map(
-        lambda x: 'Untrained' if x == 'Naive' else x)
+
+    # Rename "Naive" values for conditions
+    tidy_df['Condition'] = tidy_df['Condition'].map(lambda x: 'Untrained' if x == 'Naive' else x)
+
+    # Force position to be integer
     tidy_df['Position ID'] = tidy_df['Position ID'].map(int)
 
-    board_values = ['Black Position', 'White Position',
-                    'Is Real', 'Num Pieces']
+    # Pivot table at per-board level
+    # to efficiently compute and index board properties
+    board_values = ['Black Position', 'White Position', 'Is Real', 'Num Pieces']
 
-    board_set = tidy_df.pivot_table(index='Position ID',
-                                 values=board_values,
-                                 aggfunc=lambda x: x.unique()[0])
+    board_set = tidy_df.pivot_table(index='Position ID', values=board_values,
+                                    aggfunc=lambda x: x.unique()[0])
+
     board_set = board_set[board_values]
+
+    # Compute adjacency statistics at each location
+    adjacency_column_names = [f'adjacency_{v}' for v in ('all', 'same', 'opposite')]
 
     adjacencies = board_set.apply(get_adjacency_per_location, axis=1)
 
-    adjacency_column_names = ['adjacency_all',
-                              'adjacency_same',
-                              'adjacency_opposite']
-
     adjacency_df = pd.DataFrame(adjacencies.tolist(),
-                                index=board_set.index,
-                                columns=adjacency_column_names)
+                                index=board_set.index, columns=adjacency_column_names)
 
+    # Expand colors over board locations
+    colors = board_set.apply(get_color_per_location, axis=1)
+    colors_df = pd.DataFrame(colors.tolist(),
+                             index=board_set.index, columns=['colors'])
+
+    # Compute errors at each board location
     for error_type in range(1, 4):
-        tidy_df[f'errors_{error_type}'] = tidy_df.apply(
-            lambda x: get_errors_per_location(x, str(error_type)), axis=1)
+        tidy_df[f'errors_{error_type}'] = tidy_df.apply(lambda x: get_errors_per_location(x, str(error_type)), axis=1)
 
     # Compute occupancy and condition indicators
     # for each location on each trial
     tidy_df['occupied'] = tidy_df.apply(_get_occupied_mask, axis=1)
     tidy_df['condition_mask'] = tidy_df['Condition'].map(_get_condition_mask)
 
-    # For convenience,
-    # pull per-location adjacency statistics for each trial
+    # For convenience, pull per-location statistics for each trial
     # into the per-trial dataframe
-    tidy_df['adjacency_same'] = tidy_df['Position ID'].map(
-        adjacency_df['adjacency_same'])
-    tidy_df['adjacency_opposite'] = tidy_df['Position ID'].map(
-        adjacency_df['adjacency_opposite'])
+    tidy_df['adjacency_same'] = tidy_df['Position ID'].map(adjacency_df['adjacency_same'])
+    tidy_df['adjacency_opposite'] = tidy_df['Position ID'].map(adjacency_df['adjacency_opposite'])
+    tidy_df['colors'] = tidy_df['Position ID'].map(colors_df['colors'])
 
     # Convert the subject UID to an integer index
     subject_ids = tidy_df['Subject ID'].unique()
