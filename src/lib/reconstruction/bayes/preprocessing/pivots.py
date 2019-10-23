@@ -46,7 +46,7 @@ def load_tidy(tidy_path):
 
     # Expand colors over board locations
     colors = board_set.apply(get_color_per_location, axis=1)
-    colors_df = pd.DataFrame(colors, index=board_set.index, columns=['colors'])
+    colors_series = pd.Series(colors.tolist(), index=board_set.index, name='colors')
 
     # Compute errors at each board location
     for error_type in range(1, 4):
@@ -61,7 +61,7 @@ def load_tidy(tidy_path):
     # into the per-trial dataframe
     tidy_df['adjacency_same'] = tidy_df['Position ID'].map(adjacency_df['adjacency_same'])
     tidy_df['adjacency_opposite'] = tidy_df['Position ID'].map(adjacency_df['adjacency_opposite'])
-    tidy_df['colors'] = tidy_df['Position ID'].map(colors_df['colors'])
+    tidy_df['colors'] = tidy_df['Position ID'].map(colors_series)
 
     # Convert the subject UID to an integer index
     subject_ids = tidy_df['Subject ID'].unique()
