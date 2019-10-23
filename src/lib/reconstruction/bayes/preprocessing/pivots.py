@@ -100,6 +100,7 @@ def compute_extra_tidy(tidy_df):
     x_opposite = np.concatenate(tidy_df['adjacency_opposite'].values)
     x_occupied = np.concatenate(tidy_df['occupied'].values)
     x_condition_mask = np.concatenate(tidy_df['condition_mask'].values)
+    x_colors = np.concatenate(tidy_df['colors'].values)
 
     x_subject = np.concatenate(tidy_df['subject_idx'].map(_expand_indicators).values)
     x_position_type = np.concatenate(tidy_df['Is Real'].map(_expand_indicators).values)
@@ -110,12 +111,12 @@ def compute_extra_tidy(tidy_df):
     y2 = np.concatenate(tidy_df['errors_2'].values)
     y3 = np.concatenate(tidy_df['errors_3'].values)
 
-    columns = ['subject', 'condition_mask', 'occupied',
+    columns = ['subject', 'condition_mask', 'occupied', 'color',
                'same', 'opposite',
                'position_type', 'position_id',
                'errors_1', 'errors_2', 'errors_3']
 
-    df_data = np.stack((x_subject, x_condition_mask, x_occupied,
+    df_data = np.stack((x_subject, x_condition_mask, x_occupied, x_colors,
                         x_same, x_opposite,
                         x_position_type, x_position_id,
                         y1, y2, y3)).T
@@ -124,7 +125,7 @@ def compute_extra_tidy(tidy_df):
 
     # Force pandas to use integers.
     for c in extra_tidy_df.columns:
-        if c not in ['condition_mask', 'same', 'opposite']:
+        if c not in ['condition_mask', 'same', 'opposite', 'color']:
             extra_tidy_df[c] = extra_tidy_df[c].astype(int)
 
     extra_tidy_df['condition_indicator'] = extra_tidy_df.condition_mask.map({'Trained': 1, 'Untrained': 0}).astype(int)
