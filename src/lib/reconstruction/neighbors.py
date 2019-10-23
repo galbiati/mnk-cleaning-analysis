@@ -129,7 +129,7 @@ def get_color_per_location(row,
     bp, wp = _expand_arrays(row, bp_name=bp_name, wp_name=wp_name)
 
     # Set black to 1, white to -1, empty to 0
-    return bp - wp
+    return (bp - wp).reshape(36)
 
 
 def main():
