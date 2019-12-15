@@ -5,13 +5,11 @@
 # By: Gianni Galbiati
 
 # Standard libraries
-import sys
 
 from argparse import ArgumentParser
 
 # External libraries
 import numpy as np
-import pandas as pd
 import patsy as pt
 import pymc3 as pm
 
@@ -165,12 +163,47 @@ def create_model(endogenous_df, exogenous_df, error_type, use_beta=False):
     return logistic_anova
 
 
+def save_trace(trace, output_path):
+    # TODO: figure out a good way to save the trace
+    pass
+
+
 def parse_arguments():
     parser = ArgumentParser()
+    parser.add_argument('output_path', type=str,
+                        help="Path to saved trace")
     parser.add_argument('error_type', type=int,
                         help="Target error type for logistic regression model.")
+    parser.add_argument('--use_beta', '-b', type=bool, default=False, action='store_true',
+                        help="Use an intermediate beta prior over binomial output.")
     parser.add_argument('--num_chains', '-c', type=int, default=4,
-                        help="Number of MCMC chains to run")
-    parser.add_argument('')
+                        help="Number of MCMC chains to run.")
 
     return parser.parse_args()
+
+
+def run(output_path, error_type, use_beta=False, num_chains=4):
+    extra_tidy_df, feature_base_names = load_data()
+    exogenous_df, endogenous_df = get_factors(extra_tidy_df, error_type, feature_base_names)
+    model = create_model(endogenous_df, exogenous_df, error_type, use_beta=use_beta)
+
+    # TODO: prior predictive check and save result
+
+    with model:
+        step = pm.NUTS(target_accept=.98, max_treedepth=10)
+        trace = pm.sample(2500, step, tune=2500, chains=num_chains, cores=num_chains)
+
+    # TODO: posterior predictive check and save result
+
+    save_trace(trace, output_path)
+
+    return None
+
+
+def main():
+    args = parse_arguments()
+    return run(**vars(args))
+
+
+if __name__ == '__main__':
+    main()
