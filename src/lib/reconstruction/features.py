@@ -6,12 +6,8 @@
 
 # Standard Libraries
 
-import threading
-import multiprocessing as mp
-
 # Scientific Libraries
 import numpy as np
-import pandas as pd
 
 # Custom Libraries
 
@@ -101,7 +97,7 @@ def _detect_type_2_error(bi, bf, wi, wf):
     final_empty = ((bf == '0') and (wf == '0'))
     original_not_empty = ((bi == '1') or (wi == '1'))
 
-    return int(original_empty and final_not_empty)
+    return int(original_not_empty and final_empty)
 
 
 def _detect_type_3_error(bi, bf, wi, wf):

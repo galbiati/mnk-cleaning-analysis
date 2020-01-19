@@ -16,8 +16,7 @@ import pymc3 as pm
 from theano import tensor as T
 
 # Internal libraries
-from src.lib.reconstruction.bayes.preprocessing.pivots import (
-    load_tidy, compute_extra_tidy)
+from src.lib.reconstruction.bayes.preprocessing.pivots import compute_extra_tidy, load_tidy
 
 from src.lib.reconstruction.features import count_all_features
 
@@ -163,11 +162,6 @@ def create_model(endogenous_df, exogenous_df, error_type, use_beta=False):
     return logistic_anova
 
 
-def save_trace(trace, output_path):
-    # TODO: figure out a good way to save the trace
-    pass
-
-
 def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument('output_path', type=str,
@@ -195,7 +189,7 @@ def run(output_path, error_type, use_beta=False, num_chains=4):
 
     # TODO: posterior predictive check and save result
 
-    save_trace(trace, output_path)
+    pm.backends.ndarray.save_trace(trace, output_path)
 
     return None
 
